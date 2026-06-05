@@ -91,10 +91,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.local_car_wash,
-                    size: 80,
-                    color: AppColors.primaryBlue,
+                  Image.asset(
+                    'assets/logo.jpeg',
+                    height: 120,
                   ),
                   const SizedBox(height: 16),
                   Text(

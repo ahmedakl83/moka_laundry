@@ -14,11 +14,26 @@ class UsersScreen extends ConsumerStatefulWidget {
 
 class _UsersScreenState extends ConsumerState<UsersScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  DateTime _selectedAttendanceDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+  }
+
+  Future<void> _selectAttendanceDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedAttendanceDate,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedAttendanceDate) {
+      setState(() {
+        _selectedAttendanceDate = picked;
+      });
+    }
   }
 
   @override
@@ -79,14 +94,23 @@ class _UsersScreenState extends ConsumerState<UsersScreen> with SingleTickerProv
 
   Widget _buildAttendanceTab() {
     final state = ref.watch(employeesProvider);
-    final today = DateTime.now();
-    final dateStr = intl.DateFormat('yyyy/MM/dd').format(today);
+    final dateStr = intl.DateFormat('yyyy/MM/dd').format(_selectedAttendanceDate);
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Text('تحضير اليوم: $dateStr', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('التاريخ: $dateStr', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              IconButton.filled(
+                onPressed: () => _selectAttendanceDate(context),
+                icon: const Icon(Icons.edit_calendar),
+                style: IconButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+              ),
+            ],
+          ),
         ),
         Expanded(
           child: ListView.builder(
@@ -96,14 +120,14 @@ class _UsersScreenState extends ConsumerState<UsersScreen> with SingleTickerProv
               final employee = state.employees[index];
               final isPresent = state.attendance.any((a) =>
                 a.employeeId == employee.id &&
-                intl.DateFormat('yyyyMMdd').format(a.date) == intl.DateFormat('yyyyMMdd').format(today)
+                intl.DateFormat('yyyyMMdd').format(a.date) == intl.DateFormat('yyyyMMdd').format(_selectedAttendanceDate)
               );
 
               return CheckboxListTile(
                 title: Text(employee.name),
                 value: isPresent,
                 onChanged: (val) {
-                  ref.read(employeesProvider.notifier).markAttendance(employee.id, today, val ?? false);
+                  ref.read(employeesProvider.notifier).markAttendance(employee.id, _selectedAttendanceDate, val ?? false);
                 },
               );
             },
