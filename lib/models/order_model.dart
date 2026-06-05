@@ -1,6 +1,6 @@
 import 'service_model.dart';
 
-enum OrderStatus { pending, completed, cancelled }
+enum OrderStatus { pending, washing, ready, completed, cancelled }
 enum PaymentMethod { cash, wallet }
 
 class OrderModel {

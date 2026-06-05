@@ -49,6 +49,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showCodeLoginDialog(BuildContext context) {
+    final codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('دخول جهاز الموظف'),
+        content: TextField(
+          controller: codeController,
+          decoration: const InputDecoration(labelText: 'أدخل كود الربط'),
+          keyboardType: TextInputType.number,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () async {
+              final success = await ref.read(authProvider.notifier).login('code', codeController.text);
+              if (success && mounted) {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('دخول'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -137,6 +164,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('تسجيل الدخول', style: TextStyle(fontSize: 18)),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      _showCodeLoginDialog(context);
+                    },
+                    child: const Text('الدخول بواسطة كود (لجهاز الموظف)'),
                   ),
                   const SizedBox(height: 16),
                   if (authState.isFirstRun)

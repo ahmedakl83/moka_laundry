@@ -11,7 +11,30 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
 
   void addOrder(OrderModel order) {
     state = [order, ...state];
-    // هنا سيتم الحفظ في Firestore
+  }
+
+  void updateOrderStatus(String orderId, OrderStatus newStatus) {
+    state = [
+      for (final order in state)
+        if (order.id == orderId)
+          OrderModel(
+            id: order.id,
+            serialNumber: order.serialNumber,
+            customerId: order.customerId,
+            customerName: order.customerName,
+            carNumber: order.carNumber,
+            carPlateImagePath: order.carPlateImagePath,
+            services: order.services,
+            totalPrice: order.totalPrice,
+            status: newStatus,
+            paymentMethod: order.paymentMethod,
+            notes: order.notes,
+            userId: order.userId,
+            createdAt: order.createdAt,
+          )
+        else
+          order
+    ];
   }
 
   String generateSerialNumber() {

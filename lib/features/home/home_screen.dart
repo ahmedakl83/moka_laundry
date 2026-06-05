@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../auth/auth_provider.dart';
-import '../../models/user_model.dart';
 import '../customers/customers_screen.dart';
 import '../services/services_screen.dart';
 import '../orders/new_order_screen.dart';
+import '../orders/operations_screen.dart';
 import '../expenses/expenses_screen.dart';
 import '../reports/reports_screen.dart';
 import '../auth/users_screen.dart';
+import '../auth/client_invite_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -56,7 +57,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              isAdmin ? 'لوحة تحكم المدير' : 'لوحة إدخال البيانات اليومية',
+              isAdmin ? 'لوحة تحكم المدير' : 'لوحة الموظف',
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 24),
@@ -77,6 +78,15 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   _buildMenuCard(
                     context,
+                    title: 'متابعة العمليات',
+                    icon: Icons.track_changes,
+                    color: Colors.indigo,
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const OperationsScreen()));
+                    },
+                  ),
+                  _buildMenuCard(
+                    context,
                     title: 'العملاء',
                     icon: Icons.people,
                     color: Colors.orange,
@@ -85,6 +95,15 @@ class HomeScreen extends ConsumerWidget {
                     },
                   ),
                   if (isAdmin) ...[
+                    _buildMenuCard(
+                      context,
+                      title: 'الحضور والرواتب',
+                      icon: Icons.assignment_ind,
+                      color: Colors.teal,
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen()));
+                      },
+                    ),
                     _buildMenuCard(
                       context,
                       title: 'الخدمات',
@@ -114,11 +133,11 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     _buildMenuCard(
                       context,
-                      title: 'الموظفين',
-                      icon: Icons.badge,
-                      color: Colors.teal,
+                      title: 'ربط جهاز',
+                      icon: Icons.phonelink_setup,
+                      color: Colors.blueGrey,
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen()));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ClientInviteScreen()));
                       },
                     ),
                   ],
@@ -145,7 +164,8 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),
