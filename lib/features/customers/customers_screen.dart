@@ -29,7 +29,7 @@ class CustomersScreen extends ConsumerWidget {
                     title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('رقم الهاتف: ${customer.phone}'),
                     trailing: Text(
-                      'الدين: ${customer.balance} ريال',
+                      'الدين: ${customer.balance} ج.م',
                       style: TextStyle(
                         color: customer.balance > 0 ? Colors.red : Colors.green,
                         fontWeight: FontWeight.bold,

@@ -31,7 +31,7 @@ class ServicesScreen extends ConsumerWidget {
                       child: Icon(Icons.local_car_wash, color: AppColors.primaryBlue),
                     ),
                     title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('السعر: ${service.price} ريال'),
+                    subtitle: Text('السعر: ${service.price} ج.م'),
                     trailing: IconButton(
                       icon: const Icon(Icons.edit, color: AppColors.primaryBlue),
                       onPressed: () => _showServiceDialog(context, ref, service: service),
@@ -66,7 +66,7 @@ class ServicesScreen extends ConsumerWidget {
             ),
             TextField(
               controller: priceController,
-              decoration: const InputDecoration(labelText: 'السعر (ريال)'),
+              decoration: const InputDecoration(labelText: 'السعر (ج.م)'),
               keyboardType: TextInputType.number,
             ),
           ],

@@ -36,46 +36,66 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(AuthState()) {
-    checkFirstRun();
+    _init();
   }
 
-  Future<void> checkFirstRun() async {
+  Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstRun = prefs.getBool('isFirstRun') ?? true;
-    state = state.copyWith(isFirstRun: isFirstRun);
+
+    // محاولة تسجيل الدخول تلقائياً إذا كان هناك مستخدم محفوظ
+    final savedUsername = prefs.getString('admin_username');
+    if (!isFirstRun && savedUsername != null) {
+      final user = UserModel(
+        id: 'admin_id',
+        name: prefs.getString('admin_name') ?? 'المدير',
+        username: savedUsername,
+        email: prefs.getString('admin_email') ?? '',
+        role: UserRole.admin,
+      );
+      state = state.copyWith(user: user, isFirstRun: false);
+    } else {
+      state = state.copyWith(isFirstRun: isFirstRun);
+    }
   }
 
   Future<bool> login(String username, String password) async {
     state = state.copyWith(isLoading: true, error: null);
+    final prefs = await SharedPreferences.getInstance();
 
-    // محاكاة تسجيل الدخول للآن حتى نربط Firebase
     await Future.delayed(const Duration(seconds: 1));
 
-    if (username == 'admin' && password == 'admin123') {
-      if (state.isFirstRun) {
+    // إذا كان أول تشغيل، نقبل بيانات admin الافتراضية
+    if (state.isFirstRun) {
+      if (username == 'admin' && password == 'admin123') {
         state = state.copyWith(isLoading: false);
-        return true; // يجب التوجه لشاشة الإعداد
+        return true;
       }
-
-      final user = UserModel(
-        id: 'admin_id',
-        name: 'المدير',
-        username: 'admin',
-        email: 'admin@moka.com',
-        role: UserRole.admin,
-      );
-      state = state.copyWith(user: user, isLoading: false);
-      return true;
     } else {
-      state = state.copyWith(isLoading: false, error: 'خطأ في اسم المستخدم أو كلمة المرور');
-      return false;
+      // إذا لم يكن أول تشغيل، نتحقق من البيانات المحفوظة
+      final savedUser = prefs.getString('admin_username');
+      final savedPass = prefs.getString('admin_password');
+
+      if (username == savedUser && password == savedPass) {
+        final user = UserModel(
+          id: 'admin_id',
+          name: prefs.getString('admin_name') ?? 'المدير',
+          username: username,
+          email: prefs.getString('admin_email') ?? '',
+          role: UserRole.admin,
+        );
+        state = state.copyWith(user: user, isLoading: false);
+        return true;
+      }
     }
+
+    state = state.copyWith(isLoading: false, error: 'خطأ في اسم المستخدم أو كلمة المرور');
+    return false;
   }
 
   Future<void> completeAdminSetup(String name, String email, String newUsername, String newPassword) async {
     state = state.copyWith(isLoading: true);
 
-    // حفظ البيانات محلياً وتغيير حالة أول تشغيل
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isFirstRun', false);
     await prefs.setString('admin_name', name);
@@ -92,5 +112,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
 
     state = state.copyWith(user: user, isLoading: false, isFirstRun: false);
+  }
+
+  Future<void> logout() async {
+    state = state.copyWith(user: null);
   }
 }

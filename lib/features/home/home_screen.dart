@@ -8,6 +8,7 @@ import '../services/services_screen.dart';
 import '../orders/new_order_screen.dart';
 import '../expenses/expenses_screen.dart';
 import '../reports/reports_screen.dart';
+import '../auth/users_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -24,8 +25,23 @@ class HomeScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () {},
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('تسجيل الخروج'),
+                  content: const Text('هل أنت متأكد من رغبتك في تسجيل الخروج؟'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('خروج', style: TextStyle(color: Colors.red))),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                ref.read(authProvider.notifier).logout();
+              }
+            },
           ),
         ],
       ),
@@ -101,7 +117,9 @@ class HomeScreen extends ConsumerWidget {
                       title: 'الموظفين',
                       icon: Icons.badge,
                       color: Colors.teal,
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen()));
+                      },
                     ),
                   ],
                 ],

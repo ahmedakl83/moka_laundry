@@ -18,7 +18,8 @@ class NewOrderScreen extends ConsumerStatefulWidget {
 }
 
 class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
-  final _carNumberController = TextEditingController();
+  final _carNumbersController = TextEditingController();
+  final _carLettersController = TextEditingController();
   final _notesController = TextEditingController();
   final _paidAmountController = TextEditingController();
 
@@ -31,7 +32,6 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
   @override
   void initState() {
     super.initState();
-    // العميل الافتراضي هو أول واحد (غالباً عميل نقدي)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final customers = ref.read(customersProvider);
       if (customers.isNotEmpty) {
@@ -41,9 +41,10 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
   }
 
   void _submitOrder() {
-    if (_carNumberController.text.isEmpty || _selectedServices.isEmpty) {
+    String carPlate = "${_carLettersController.text} ${_carNumbersController.text}".trim();
+    if (carPlate.isEmpty || _selectedServices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال رقم اللوحة واختيار خدمة واحدة على الأقل')),
+        const SnackBar(content: Text('يرجى إدخال بيانات اللوحة واختيار خدمة واحدة على الأقل')),
       );
       return;
     }
@@ -54,10 +55,12 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
       serialNumber: ref.read(ordersProvider.notifier).generateSerialNumber(),
       customerId: _selectedCustomer?.id,
       customerName: _selectedCustomer?.name ?? 'عميل نقدي',
-      carNumber: _carNumberController.text,
+      carNumber: carPlate,
       services: _selectedServices,
       totalPrice: _totalPrice,
-      paidAmount: double.tryParse(_paidAmountController.text) ?? _totalPrice,
+      paidAmount: _selectedStatus == OrderStatus.debt
+          ? 0
+          : (_selectedStatus == OrderStatus.paid ? _totalPrice : (double.tryParse(_paidAmountController.text) ?? 0)),
       status: _selectedStatus,
       notes: _notesController.text,
       userId: user?.id ?? '',
@@ -85,7 +88,6 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // قسم العميل
             const Text('العميل:', style: TextStyle(fontWeight: FontWeight.bold)),
             DropdownButtonFormField<CustomerModel>(
               value: _selectedCustomer,
@@ -95,46 +97,62 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
             ),
             const SizedBox(height: 16),
 
-            // قسم رقم اللوحة مع OCR
-            const Text('رقم اللوحة:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('رقم اللوحة (مصر):', style: TextStyle(fontWeight: FontWeight.bold)),
             Row(
               children: [
                 Expanded(
+                  flex: 2,
                   child: TextFormField(
-                    controller: _carNumberController,
+                    controller: _carLettersController,
+                    textAlign: TextAlign.center,
                     decoration: const InputDecoration(
-                      hintText: 'أدخل رقم السيارة',
+                      hintText: 'حروف (أ ب ج)',
                       border: OutlineInputBorder(),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton.icon(
+                Expanded(
+                  flex: 3,
+                  child: TextFormField(
+                    controller: _carNumbersController,
+                    textAlign: TextAlign.center,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      hintText: 'أرقام (1234)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
                   onPressed: () async {
                     final result = await Navigator.push<String>(
                       context,
                       MaterialPageRoute(builder: (_) => const PlateScannerScreen()),
                     );
                     if (result != null) {
-                      setState(() => _carNumberController.text = result);
+                      // محاولة تقسيم النتيجة لـ حروف وأرقام إذا أمكن
+                      setState(() {
+                        _carLettersController.text = result.replaceAll(RegExp(r'[0-9]'), '').trim();
+                        _carNumbersController.text = result.replaceAll(RegExp(r'[^0-9]'), '').trim();
+                      });
                     }
                   },
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('تصوير'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentBlue, foregroundColor: Colors.white),
+                  icon: const Icon(Icons.camera_alt, color: AppColors.primaryBlue),
+                  style: IconButton.styleFrom(backgroundColor: AppColors.lightBlue.withOpacity(0.2)),
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
-            // قسم الخدمات
             const Text('الخدمات المطلوبة:', style: TextStyle(fontWeight: FontWeight.bold)),
             Wrap(
               spacing: 8,
               children: services.map((s) {
                 final isSelected = _selectedServices.contains(s);
                 return FilterChip(
-                  label: Text('${s.name} (${s.price} ريال)'),
+                  label: Text('${s.name} (${s.price} ج.م)'),
                   selected: isSelected,
                   onSelected: (selected) {
                     setState(() {
@@ -150,7 +168,6 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
             ),
             const SizedBox(height: 24),
 
-            // الحساب الإجمالي
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -162,13 +179,12 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('الإجمالي المستحق:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('$_totalPrice ريال', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+                  Text('$_totalPrice ج.م', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
-            // حالة الدفع
             const Text('حالة الدفع:', style: TextStyle(fontWeight: FontWeight.bold)),
             SegmentedButton<OrderStatus>(
               segments: const [
@@ -179,9 +195,22 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
               selected: {_selectedStatus},
               onSelectionChanged: (set) => setState(() => _selectedStatus = set.first),
             ),
+
+            if (_selectedStatus == OrderStatus.partiallyPaid) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _paidAmountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'المبلغ المدفوع حالياً',
+                  hintText: 'أدخل المبلغ',
+                  border: OutlineInputBorder(),
+                  suffixText: 'ج.م',
+                ),
+              ),
+            ],
             const SizedBox(height: 32),
 
-            // زر الحفظ
             SizedBox(
               width: double.infinity,
               height: 55,

@@ -39,7 +39,7 @@ class ExpensesScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('${expense.amount} ريال', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        Text('${expense.amount} ج.م', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                         Text(DateFormat('yyyy/MM/dd').format(expense.date), style: const TextStyle(fontSize: 12)),
                       ],
                     ),

@@ -72,7 +72,7 @@ class ReportsScreen extends ConsumerWidget {
                 return ListTile(
                   title: Text('طلب رقم: ${order.serialNumber}'),
                   subtitle: Text(order.customerName),
-                  trailing: Text('${order.totalPrice} ريال'),
+                  trailing: Text('${order.totalPrice} ج.م'),
                 );
               },
             ),
@@ -100,7 +100,7 @@ class ReportsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                  Text('$amount ريال', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                  Text('$amount ج.م', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
                 ],
               ),
             ),
