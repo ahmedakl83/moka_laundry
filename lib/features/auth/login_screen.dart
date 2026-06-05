@@ -179,6 +179,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppColors.grey, fontSize: 12),
                     ),
+                  const SizedBox(height: 50),
                 ],
               ),
             ),

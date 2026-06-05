@@ -56,6 +56,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             const Text('أكثر الخدمات طلباً:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             _buildServiceStats(allOrders),
+            const SizedBox(height: 50),
           ],
         ),
       ),

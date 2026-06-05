@@ -143,6 +143,7 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
                       : const Text('حفظ البيانات والبدء', style: TextStyle(fontSize: 18)),
                 ),
               ),
+              const SizedBox(height: 50),
             ],
           ),
         ),

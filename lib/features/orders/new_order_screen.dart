@@ -282,6 +282,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                 child: const Text('بدء العملية وحفظ الطلب', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ),
+            const SizedBox(height: 50), // مساحة إضافية كبيرة لضمان عدم التداخل
           ],
         ),
       ),

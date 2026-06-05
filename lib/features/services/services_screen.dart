@@ -21,6 +21,7 @@ class ServicesScreen extends ConsumerWidget {
         child: services.isEmpty
             ? const Center(child: Text('لا توجد خدمات مسجلة'))
             : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 80),
                 itemCount: services.length,
                 itemBuilder: (context, index) {
                   final service = services[index];

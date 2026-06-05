@@ -26,6 +26,7 @@ class OperationsScreen extends ConsumerWidget {
         child: activeOrders.isEmpty
             ? const Center(child: Text('لا توجد عمليات نشطة حالياً'))
             : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 80),
                 itemCount: activeOrders.length,
                 itemBuilder: (context, index) {
                   final order = activeOrders[index];

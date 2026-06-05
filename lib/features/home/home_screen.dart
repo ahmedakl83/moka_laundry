@@ -65,10 +65,8 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Expanded(
               child: GridView.count(
+                padding: const EdgeInsets.only(bottom: 60),
                 crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                children: [
                   _buildMenuCard(
                     context,
                     title: 'تسجيل طلب',

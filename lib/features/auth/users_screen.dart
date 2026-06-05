@@ -57,6 +57,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> with SingleTickerProv
 
     return Scaffold(
       body: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 80),
         itemCount: employees.length,
         itemBuilder: (context, index) {
           final employee = employees[index];
@@ -89,6 +90,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> with SingleTickerProv
         ),
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 80),
             itemCount: state.employees.length,
             itemBuilder: (context, index) {
               final employee = state.employees[index];
@@ -130,6 +132,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> with SingleTickerProv
         ),
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 80),
             itemCount: state.employees.length,
             itemBuilder: (context, index) {
               final employee = state.employees[index];

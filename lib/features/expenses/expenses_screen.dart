@@ -24,6 +24,7 @@ class ExpensesScreen extends ConsumerWidget {
         child: expenses.isEmpty
             ? const Center(child: Text('لا توجد مصروفات مسجلة'))
             : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 80),
                 itemCount: expenses.length,
                 itemBuilder: (context, index) {
                   final expense = expenses[index];

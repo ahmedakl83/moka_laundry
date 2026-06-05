@@ -21,6 +21,7 @@ class CustomersScreen extends ConsumerWidget {
         child: customers.isEmpty
             ? const Center(child: Text('لا يوجد عملاء مسجلين'))
             : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 80),
                 itemCount: customers.length,
                 itemBuilder: (context, index) {
                   final customer = customers[index];

@@ -54,6 +54,7 @@ class ClientInviteScreen extends ConsumerWidget {
                 'ملاحظة: هذا الكود صالح لربط جهاز واحد فقط ويُستخدم لمرة واحدة.',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
+              const SizedBox(height: 50),
             ],
           ),
         ),
