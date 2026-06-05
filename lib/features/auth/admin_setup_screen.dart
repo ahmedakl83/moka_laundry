@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
+import '../home/home_screen.dart';
 import 'auth_provider.dart';
 
 class AdminSetupScreen extends ConsumerStatefulWidget {
@@ -39,7 +40,12 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم إعداد حساب المدير بنجاح')),
         );
-        // التوجه للشاشة الرئيسية سيتم تلقائياً عبر مراقبة حالة الـ Auth في main.dart
+
+        // الانتقال الفوري للشاشة الرئيسية وإزالة شاشة الإعداد من المكدس
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
       }
     }
   }
