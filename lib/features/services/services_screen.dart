@@ -17,29 +17,31 @@ class ServicesScreen extends ConsumerWidget {
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
       ),
-      body: services.isEmpty
-          ? const Center(child: Text('لا توجد خدمات مسجلة'))
-          : ListView.builder(
-              itemCount: services.length,
-              itemBuilder: (context, index) {
-                final service = services[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: AppColors.lightBlue,
-                      child: Icon(Icons.local_car_wash, color: AppColors.primaryBlue),
+      body: SafeArea(
+        child: services.isEmpty
+            ? const Center(child: Text('لا توجد خدمات مسجلة'))
+            : ListView.builder(
+                itemCount: services.length,
+                itemBuilder: (context, index) {
+                  final service = services[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: AppColors.lightBlue,
+                        child: Icon(Icons.local_car_wash, color: AppColors.primaryBlue),
+                      ),
+                      title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text('السعر: ${service.price} ج.م'),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit, color: AppColors.primaryBlue),
+                        onPressed: () => _showServiceDialog(context, ref, service: service),
+                      ),
                     ),
-                    title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('السعر: ${service.price} ج.م'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit, color: AppColors.primaryBlue),
-                      onPressed: () => _showServiceDialog(context, ref, service: service),
-                    ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showServiceDialog(context, ref),
         backgroundColor: AppColors.primaryBlue,

@@ -17,29 +17,31 @@ class CustomersScreen extends ConsumerWidget {
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
       ),
-      body: customers.isEmpty
-          ? const Center(child: Text('لا يوجد عملاء مسجلين'))
-          : ListView.builder(
-              itemCount: customers.length,
-              itemBuilder: (context, index) {
-                final customer = customers[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('رقم الهاتف: ${customer.phone}'),
-                    trailing: Text(
-                      'الدين: ${customer.balance} ج.م',
-                      style: TextStyle(
-                        color: customer.balance > 0 ? Colors.red : Colors.green,
-                        fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: customers.isEmpty
+            ? const Center(child: Text('لا يوجد عملاء مسجلين'))
+            : ListView.builder(
+                itemCount: customers.length,
+                itemBuilder: (context, index) {
+                  final customer = customers[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text('رقم الهاتف: ${customer.phone}'),
+                      trailing: Text(
+                        'الدين: ${customer.balance} ج.م',
+                        style: TextStyle(
+                          color: customer.balance > 0 ? Colors.red : Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                      onTap: () => _showCustomerDialog(context, ref, customer: customer),
                     ),
-                    onTap: () => _showCustomerDialog(context, ref, customer: customer),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCustomerDialog(context, ref),
         backgroundColor: AppColors.primaryBlue,

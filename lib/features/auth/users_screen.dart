@@ -39,13 +39,15 @@ class _UsersScreenState extends ConsumerState<UsersScreen> with SingleTickerProv
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildEmployeesTab(),
-          _buildAttendanceTab(),
-          _buildPayrollTab(),
-        ],
+      body: SafeArea(
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildEmployeesTab(),
+            _buildAttendanceTab(),
+            _buildPayrollTab(),
+          ],
+        ),
       ),
     );
   }

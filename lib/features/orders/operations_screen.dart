@@ -22,15 +22,17 @@ class OperationsScreen extends ConsumerWidget {
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
       ),
-      body: activeOrders.isEmpty
-          ? const Center(child: Text('لا توجد عمليات نشطة حالياً'))
-          : ListView.builder(
-              itemCount: activeOrders.length,
-              itemBuilder: (context, index) {
-                final order = activeOrders[index];
-                return _buildOrderCard(context, ref, order);
-              },
-            ),
+      body: SafeArea(
+        child: activeOrders.isEmpty
+            ? const Center(child: Text('لا توجد عمليات نشطة حالياً'))
+            : ListView.builder(
+                itemCount: activeOrders.length,
+                itemBuilder: (context, index) {
+                  final order = activeOrders[index];
+                  return _buildOrderCard(context, ref, order);
+                },
+              ),
+      ),
     );
   }
 

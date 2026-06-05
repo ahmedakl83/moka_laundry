@@ -20,33 +20,35 @@ class ExpensesScreen extends ConsumerWidget {
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
       ),
-      body: expenses.isEmpty
-          ? const Center(child: Text('لا توجد مصروفات مسجلة'))
-          : ListView.builder(
-              itemCount: expenses.length,
-              itemBuilder: (context, index) {
-                final expense = expenses[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFFFEBEE),
-                      child: Icon(Icons.money_off, color: Colors.red),
+      body: SafeArea(
+        child: expenses.isEmpty
+            ? const Center(child: Text('لا توجد مصروفات مسجلة'))
+            : ListView.builder(
+                itemCount: expenses.length,
+                itemBuilder: (context, index) {
+                  final expense = expenses[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFFFEBEE),
+                        child: Icon(Icons.money_off, color: Colors.red),
+                      ),
+                      title: Text(expense.categoryName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(expense.description),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('${expense.amount} ج.م', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                          Text(DateFormat('yyyy/MM/dd').format(expense.date), style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
                     ),
-                    title: Text(expense.categoryName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(expense.description),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('${expense.amount} ج.م', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                        Text(DateFormat('yyyy/MM/dd').format(expense.date), style: const TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddExpenseDialog(context, ref),
         backgroundColor: Colors.red,
