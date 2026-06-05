@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
+// import 'firebase_options.dart'; // Uncomment this after running 'flutterfire configure'
 import 'core/constants.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/auth_provider.dart';
@@ -8,6 +10,15 @@ import 'features/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(
+      // options: DefaultFirebaseOptions.currentPlatform, // Uncomment this after running 'flutterfire configure'
+    );
+  } catch (e) {
+    debugPrint("Firebase initialization error: $e");
+  }
+
   runApp(
     const ProviderScope(
       child: MokaApp(),

@@ -53,98 +53,102 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            Text(
-              'أهلاً بك يا ${user?.name ?? 'مستخدم'}',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isAdmin ? 'لوحة تحكم المدير' : 'لوحة الموظف',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: GridView.count(
-                padding: const EdgeInsets.only(bottom: 60),
-                crossAxisCount: 2,
-                  _buildMenuCard(
-                    context,
-                    title: 'تسجيل طلب',
-                    icon: Icons.add_shopping_cart,
-                    color: Colors.green,
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NewOrderScreen()));
-                    },
-                  ),
-                  _buildMenuCard(
-                    context,
-                    title: 'متابعة العمليات',
-                    icon: Icons.track_changes,
-                    color: Colors.indigo,
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const OperationsScreen()));
-                    },
-                  ),
-                  _buildMenuCard(
-                    context,
-                    title: 'العملاء',
-                    icon: Icons.people,
-                    color: Colors.orange,
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomersScreen()));
-                    },
-                  ),
-                  if (isAdmin) ...[
-                    _buildMenuCard(
-                      context,
-                      title: 'الحضور والرواتب',
-                      icon: Icons.assignment_ind,
-                      color: Colors.teal,
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen()));
-                      },
-                    ),
-                    _buildMenuCard(
-                      context,
-                      title: 'الخدمات',
-                      icon: Icons.local_car_wash,
-                      color: Colors.blue,
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicesScreen()));
-                      },
-                    ),
-                    _buildMenuCard(
-                      context,
-                      title: 'المصروفات',
-                      icon: Icons.money_off,
-                      color: Colors.red,
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
-                      },
-                    ),
-                    _buildMenuCard(
-                      context,
-                      title: 'التقارير',
-                      icon: Icons.bar_chart,
-                      color: Colors.purple,
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
-                      },
-                    ),
-                    _buildMenuCard(
-                      context,
-                      title: 'ربط جهاز',
-                      icon: Icons.phonelink_setup,
-                      color: Colors.blueGrey,
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ClientInviteScreen()));
-                      },
-                    ),
-                  ],
-                ],
+              Text(
+                'أهلاً بك يا ${user?.name ?? 'مستخدم'}',
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                isAdmin ? 'لوحة تحكم المدير' : 'لوحة الموظف',
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: GridView.count(
+                  padding: const EdgeInsets.only(bottom: 60),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  children: [
+                    _buildMenuCard(
+                      context,
+                      title: 'تسجيل طلب',
+                      icon: Icons.add_shopping_cart,
+                      color: Colors.green,
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const NewOrderScreen()));
+                      },
+                    ),
+                    _buildMenuCard(
+                      context,
+                      title: 'متابعة العمليات',
+                      icon: Icons.track_changes,
+                      color: Colors.indigo,
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const OperationsScreen()));
+                      },
+                    ),
+                    _buildMenuCard(
+                      context,
+                      title: 'العملاء',
+                      icon: Icons.people,
+                      color: Colors.orange,
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomersScreen()));
+                      },
+                    ),
+                    if (isAdmin) ...[
+                      _buildMenuCard(
+                        context,
+                        title: 'الحضور والرواتب',
+                        icon: Icons.assignment_ind,
+                        color: Colors.teal,
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const UsersScreen()));
+                        },
+                      ),
+                      _buildMenuCard(
+                        context,
+                        title: 'الخدمات',
+                        icon: Icons.local_car_wash,
+                        color: Colors.blue,
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicesScreen()));
+                        },
+                      ),
+                      _buildMenuCard(
+                        context,
+                        title: 'المصروفات',
+                        icon: Icons.money_off,
+                        color: Colors.red,
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
+                        },
+                      ),
+                      _buildMenuCard(
+                        context,
+                        title: 'التقارير',
+                        icon: Icons.bar_chart,
+                        color: Colors.purple,
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+                        },
+                      ),
+                      _buildMenuCard(
+                        context,
+                        title: 'ربط جهاز',
+                        icon: Icons.phonelink_setup,
+                        color: Colors.blueGrey,
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ClientInviteScreen()));
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

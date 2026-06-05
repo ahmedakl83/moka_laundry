@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import '../../models/employee_model.dart';
 
 final employeesProvider = StateNotifierProvider<EmployeesNotifier, EmployeesState>((ref) {
@@ -32,67 +33,68 @@ class EmployeesState {
 }
 
 class EmployeesNotifier extends StateNotifier<EmployeesState> {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
   EmployeesNotifier() : super(EmployeesState(employees: [], attendance: [])) {
-    _loadData();
+    _init();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
-
-    final employeesJson = prefs.getString('employees_list');
-    List<EmployeeModel> loadedEmployees = [];
-    if (employeesJson != null) {
-      final List decoded = json.decode(employeesJson);
-      loadedEmployees = decoded.map((e) => EmployeeModel.fromMap(e)).toList();
-    }
-
-    final attendanceJson = prefs.getString('attendance_list');
-    List<AttendanceRecord> loadedAttendance = [];
-    if (attendanceJson != null) {
-      final List decoded = json.decode(attendanceJson);
-      loadedAttendance = decoded.map((a) => AttendanceRecord.fromMap(a)).toList();
-    }
-
     final weekStart = prefs.getInt('week_start_day') ?? 6;
+    state = state.copyWith(weekStartDay: weekStart);
 
-    state = state.copyWith(
-      employees: loadedEmployees,
-      attendance: loadedAttendance,
-      weekStartDay: weekStart,
-    );
+    // متابعة الموظفين
+    _db.collection('employees').snapshots().listen((snapshot) {
+      final employees = snapshot.docs.map((doc) => EmployeeModel.fromMap(doc.data())).toList();
+      state = state.copyWith(employees: employees);
+    });
+
+    // متابعة الحضور
+    _db.collection('attendance').snapshots().listen((snapshot) {
+      final attendance = snapshot.docs.map((doc) {
+        final data = doc.data();
+        if (data['date'] is Timestamp) {
+          data['date'] = (data['date'] as Timestamp).toDate().toIso8601String();
+        }
+        return AttendanceRecord.fromMap(data);
+      }).toList();
+      state = state.copyWith(attendance: attendance);
+    });
   }
 
   Future<void> addEmployee(String name, double dailyRate) async {
+    final docRef = _db.collection('employees').doc();
     final newEmployee = EmployeeModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: docRef.id,
       name: name,
       dailyRate: dailyRate,
     );
-    state = state.copyWith(employees: [...state.employees, newEmployee]);
-    _saveEmployees();
+    await docRef.set(newEmployee.toMap());
   }
 
   Future<void> markAttendance(String employeeId, DateTime date, bool isPresent) async {
-    final dateOnly = DateTime(date.year, date.month, date.day);
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final docId = "${employeeId}_$dateStr";
+    final docRef = _db.collection('attendance').doc(docId);
 
-    // التعديل: نحتفظ بكافة السجلات ولا نحذفها، فقط نحدث حالة اليوم إن وجد
-    final updatedAttendance = List<AttendanceRecord>.from(state.attendance);
-    updatedAttendance.removeWhere((a) {
-      final aDate = DateTime(a.date.year, a.date.month, a.date.day);
-      return a.employeeId == employeeId && aDate == dateOnly;
-    });
-
-    updatedAttendance.add(AttendanceRecord(
-      employeeId: employeeId,
-      date: dateOnly,
-      isPresent: isPresent
-    ));
-
-    state = state.copyWith(attendance: updatedAttendance);
-    _saveAttendance();
+    if (isPresent) {
+      await docRef.set({
+        'employeeId': employeeId,
+        'date': Timestamp.fromDate(DateTime(date.year, date.month, date.day)),
+        'isPresent': true,
+      });
+    } else {
+      await docRef.delete();
+    }
   }
 
-  // تقرير مخصص للموظف عبر تاريخ محدد
+  Future<void> setWeekStartDay(int day) async {
+    state = state.copyWith(weekStartDay: day);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('week_start_day', day);
+  }
+
   Map<String, dynamic> getEmployeeHistory(String employeeId, DateTime start, DateTime end) {
     final records = state.attendance.where((a) =>
       a.employeeId == employeeId &&
@@ -101,14 +103,15 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
     ).toList();
 
     int workingDays = records.where((r) => r.isPresent).length;
-    int absentDays = records.where((r) => !r.isPresent).length;
 
-    final employee = state.employees.firstWhere((e) => e.id == employeeId);
+    final employeeList = state.employees.where((e) => e.id == employeeId);
+    if (employeeList.isEmpty) return {'workingDays': 0, 'totalEarned': 0.0};
+
+    final employee = employeeList.first;
     double totalEarned = workingDays * employee.dailyRate;
 
     return {
       'workingDays': workingDays,
-      'absentDays': absentDays,
       'totalEarned': totalEarned,
       'records': records,
     };
@@ -116,7 +119,10 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
 
   double calculateWeeklySalary(String employeeId) {
     DateTime startOfWeek = _getStartOfCurrentWeek();
-    final employee = state.employees.firstWhere((e) => e.id == employeeId);
+    final employeeList = state.employees.where((e) => e.id == employeeId);
+    if (employeeList.isEmpty) return 0.0;
+
+    final employee = employeeList.first;
 
     final weekAttendance = state.attendance.where((a) {
       return a.employeeId == employeeId &&
@@ -136,23 +142,5 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
     if (daysToSubtract < 0) daysToSubtract += 7;
 
     return DateTime(now.year, now.month, now.day).subtract(Duration(days: daysToSubtract));
-  }
-
-  Future<void> setWeekStartDay(int day) async {
-    state = state.copyWith(weekStartDay: day);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('week_start_day', day);
-  }
-
-  Future<void> _saveEmployees() async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = json.encode(state.employees.map((e) => e.toMap()).toList());
-    await prefs.setString('employees_list', encoded);
-  }
-
-  Future<void> _saveAttendance() async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = json.encode(state.attendance.map((a) => a.toMap()).toList());
-    await prefs.setString('attendance_list', encoded);
   }
 }
