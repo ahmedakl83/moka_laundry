@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../models/order_model.dart';
 import '../../models/service_model.dart';
 
@@ -7,10 +9,28 @@ final ordersProvider = StateNotifierProvider<OrdersNotifier, List<OrderModel>>((
 });
 
 class OrdersNotifier extends StateNotifier<List<OrderModel>> {
-  OrdersNotifier() : super([]);
+  OrdersNotifier() : super([]) {
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ordersJson = prefs.getString('orders_history');
+    if (ordersJson != null) {
+      final List decoded = json.decode(ordersJson);
+      state = decoded.map((o) => OrderModel.fromMap(o)).toList();
+    }
+  }
+
+  Future<void> _saveOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = json.encode(state.map((o) => o.toMap()).toList());
+    await prefs.setString('orders_history', encoded);
+  }
 
   void addOrder(OrderModel order) {
     state = [order, ...state];
+    _saveOrders();
   }
 
   void updateOrderStatus(String orderId, OrderStatus newStatus) {
@@ -35,10 +55,19 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
         else
           order
     ];
+    _saveOrders();
+  }
+
+  // فلترة الطلبات حسب التاريخ للتقارير
+  List<OrderModel> getOrdersByDateRange(DateTime start, DateTime end) {
+    return state.where((o) =>
+      o.createdAt.isAfter(start.subtract(const Duration(seconds: 1))) &&
+      o.createdAt.isBefore(end.add(const Duration(days: 1)))
+    ).toList();
   }
 
   String generateSerialNumber() {
     final now = DateTime.now();
-    return "${now.year}${now.month}${now.day}${state.length + 1}";
+    return "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}${state.length + 1}";
   }
 }

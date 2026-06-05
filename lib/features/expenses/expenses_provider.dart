@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../models/expense_model.dart';
 import '../../models/expense_category_model.dart';
 
@@ -20,10 +22,6 @@ class ExpenseCategoriesNotifier extends StateNotifier<List<ExpenseCategoryModel>
       ExpenseCategoryModel(id: '5', name: 'أخرى'),
     ];
   }
-
-  void addCategory(String name) {
-    state = [...state, ExpenseCategoryModel(id: DateTime.now().toString(), name: name)];
-  }
 }
 
 final expensesProvider = StateNotifierProvider<ExpensesNotifier, List<ExpenseModel>>((ref) {
@@ -31,13 +29,34 @@ final expensesProvider = StateNotifierProvider<ExpensesNotifier, List<ExpenseMod
 });
 
 class ExpensesNotifier extends StateNotifier<List<ExpenseModel>> {
-  ExpensesNotifier() : super([]);
+  ExpensesNotifier() : super([]) {
+    _loadExpenses();
+  }
+
+  Future<void> _loadExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final expensesJson = prefs.getString('expenses_history');
+    if (expensesJson != null) {
+      final List decoded = json.decode(expensesJson);
+      state = decoded.map((e) => ExpenseModel.fromMap(e)).toList();
+    }
+  }
+
+  Future<void> _saveExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = json.encode(state.map((e) => e.toMap()).toList());
+    await prefs.setString('expenses_history', encoded);
+  }
 
   void addExpense(ExpenseModel expense) {
     state = [expense, ...state];
+    _saveExpenses();
   }
 
-  double getTotalExpenses() {
-    return state.fold(0, (sum, item) => sum + item.amount);
+  List<ExpenseModel> getExpensesByDateRange(DateTime start, DateTime end) {
+    return state.where((e) =>
+      e.date.isAfter(start.subtract(const Duration(seconds: 1))) &&
+      e.date.isBefore(end.add(const Duration(days: 1)))
+    ).toList();
   }
 }

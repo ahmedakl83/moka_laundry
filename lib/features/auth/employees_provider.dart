@@ -10,12 +10,12 @@ final employeesProvider = StateNotifierProvider<EmployeesNotifier, EmployeesStat
 class EmployeesState {
   final List<EmployeeModel> employees;
   final List<AttendanceRecord> attendance;
-  final int weekStartDay; // 1 = Monday, 6 = Saturday, 7 = Sunday
+  final int weekStartDay;
 
   EmployeesState({
     required this.employees,
     required this.attendance,
-    this.weekStartDay = 6, // السبت كبداية افتراضية في مصر
+    this.weekStartDay = 6,
   });
 
   EmployeesState copyWith({
@@ -39,7 +39,6 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // تحميل الموظفين
     final employeesJson = prefs.getString('employees_list');
     List<EmployeeModel> loadedEmployees = [];
     if (employeesJson != null) {
@@ -47,7 +46,6 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
       loadedEmployees = decoded.map((e) => EmployeeModel.fromMap(e)).toList();
     }
 
-    // تحميل الغياب
     final attendanceJson = prefs.getString('attendance_list');
     List<AttendanceRecord> loadedAttendance = [];
     if (attendanceJson != null) {
@@ -55,7 +53,6 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
       loadedAttendance = decoded.map((a) => AttendanceRecord.fromMap(a)).toList();
     }
 
-    // تحميل بداية الأسبوع
     final weekStart = prefs.getInt('week_start_day') ?? 6;
 
     state = state.copyWith(
@@ -76,32 +73,49 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
   }
 
   Future<void> markAttendance(String employeeId, DateTime date, bool isPresent) async {
-    // إزالة السجل القديم لنفس الموظف ونفس اليوم إن وجد
     final dateOnly = DateTime(date.year, date.month, date.day);
-    final filtered = state.attendance.where((a) {
+
+    // التعديل: نحتفظ بكافة السجلات ولا نحذفها، فقط نحدث حالة اليوم إن وجد
+    final updatedAttendance = List<AttendanceRecord>.from(state.attendance);
+    updatedAttendance.removeWhere((a) {
       final aDate = DateTime(a.date.year, a.date.month, a.date.day);
-      return !(a.employeeId == employeeId && aDate == dateOnly);
-    }).toList();
+      return a.employeeId == employeeId && aDate == dateOnly;
+    });
 
-    if (isPresent) {
-      filtered.add(AttendanceRecord(employeeId: employeeId, date: dateOnly, isPresent: true));
-    }
+    updatedAttendance.add(AttendanceRecord(
+      employeeId: employeeId,
+      date: dateOnly,
+      isPresent: isPresent
+    ));
 
-    state = state.copyWith(attendance: filtered);
+    state = state.copyWith(attendance: updatedAttendance);
     _saveAttendance();
   }
 
-  Future<void> setWeekStartDay(int day) async {
-    state = state.copyWith(weekStartDay: day);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('week_start_day', day);
+  // تقرير مخصص للموظف عبر تاريخ محدد
+  Map<String, dynamic> getEmployeeHistory(String employeeId, DateTime start, DateTime end) {
+    final records = state.attendance.where((a) =>
+      a.employeeId == employeeId &&
+      (a.date.isAfter(start.subtract(const Duration(seconds: 1))) &&
+       a.date.isBefore(end.add(const Duration(days: 1))))
+    ).toList();
+
+    int workingDays = records.where((r) => r.isPresent).length;
+    int absentDays = records.where((r) => !r.isPresent).length;
+
+    final employee = state.employees.firstWhere((e) => e.id == employeeId);
+    double totalEarned = workingDays * employee.dailyRate;
+
+    return {
+      'workingDays': workingDays,
+      'absentDays': absentDays,
+      'totalEarned': totalEarned,
+      'records': records,
+    };
   }
 
   double calculateWeeklySalary(String employeeId) {
-    final now = DateTime.now();
-    // الحصول على تاريخ بداية الأسبوع الحالي بناءً على الإعداد
     DateTime startOfWeek = _getStartOfCurrentWeek();
-
     final employee = state.employees.firstWhere((e) => e.id == employeeId);
 
     final weekAttendance = state.attendance.where((a) {
@@ -115,7 +129,7 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
 
   DateTime _getStartOfCurrentWeek() {
     DateTime now = DateTime.now();
-    int currentWeekday = now.weekday; // 1 = Mon, 7 = Sun
+    int currentWeekday = now.weekday;
     int targetWeekday = state.weekStartDay;
 
     int daysToSubtract = (currentWeekday - targetWeekday) % 7;
@@ -124,7 +138,6 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
     return DateTime(now.year, now.month, now.day).subtract(Duration(days: daysToSubtract));
   }
 
-  // حفظ البيانات
   Future<void> _saveEmployees() async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = json.encode(state.employees.map((e) => e.toMap()).toList());
