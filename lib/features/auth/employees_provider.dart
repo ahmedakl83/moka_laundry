@@ -138,6 +138,12 @@ class EmployeesNotifier extends StateNotifier<EmployeesState> {
     return DateTime(now.year, now.month, now.day).subtract(Duration(days: daysToSubtract));
   }
 
+  Future<void> setWeekStartDay(int day) async {
+    state = state.copyWith(weekStartDay: day);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('week_start_day', day);
+  }
+
   Future<void> _saveEmployees() async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = json.encode(state.employees.map((e) => e.toMap()).toList());

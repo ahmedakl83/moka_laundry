@@ -60,12 +60,10 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
           ElevatedButton(
             onPressed: () {
               if (nameController.text.isNotEmpty) {
-                final newCustomer = CustomerModel(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  name: nameController.text,
-                  phone: phoneController.text,
+                final newCustomer = ref.read(customersProvider.notifier).addCustomer(
+                  nameController.text,
+                  phoneController.text,
                 );
-                ref.read(customersProvider.notifier).addCustomer(newCustomer.name, newCustomer.phone);
                 setState(() => _selectedCustomer = newCustomer);
                 Navigator.pop(context);
               }
@@ -136,7 +134,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                     children: [
                       const Text('العميل:', style: TextStyle(fontWeight: FontWeight.bold)),
                       DropdownButtonFormField<CustomerModel>(
-                        value: _selectedCustomer,
+                        value: customers.contains(_selectedCustomer) ? _selectedCustomer : (customers.isNotEmpty ? customers.first : null),
                         isExpanded: true,
                         items: customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
                         onChanged: (val) => setState(() => _selectedCustomer = val),
@@ -151,7 +149,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                   child: IconButton.filled(
                     onPressed: _showAddCustomerDialog,
                     icon: const Icon(Icons.person_add),
-                    backgroundColor: AppColors.primaryBlue,
+                    style: IconButton.styleFrom(backgroundColor: AppColors.primaryBlue),
                   ),
                 ),
               ],

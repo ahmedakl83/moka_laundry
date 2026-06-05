@@ -120,14 +120,33 @@ class OperationsScreen extends ConsumerWidget {
     final customers = ref.read(customersProvider);
     final customer = customers.firstWhere((c) => c.id == order.customerId, orElse: () => throw "العميل غير موجود");
 
-    final message = "مرحباً ${customer.name}، سيارتك رقم (${order.carNumber ?? ''}) أصبحت جاهزة للتسليم في مغسلة Moka. شكراً لتعاملكم معنا.";
-    final url = "https://wa.me/${customer.phone}?text=${Uri.encodeComponent(message)}";
+    // تحويل رقم الهاتف لصيغة دولية إذا كان مصرياً يبدأ بـ 01
+    String phone = customer.phone.trim();
+    if (phone.startsWith('01')) {
+      phone = '2$phone';
+    } else if (phone.startsWith('1')) {
+      phone = '20$phone';
+    }
 
-    // ملاحظة: نحتاج إضافة url_launcher في pubspec
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح واتساب')));
+    final message = "مرحباً ${customer.name}، سيارتك رقم (${order.carNumber ?? ''}) أصبحت جاهزة للتسليم في مغسلة Moka. شكراً لتعاملكم معنا.";
+
+    // محاولة فتح واتساب مباشرة أولاً
+    final whatsappUrl = Uri.parse("whatsapp://send?phone=$phone&text=${Uri.encodeComponent(message)}");
+    final webUrl = Uri.parse("https://wa.me/$phone?text=${Uri.encodeComponent(message)}");
+
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl);
+      } else if (await canLaunchUrl(webUrl)) {
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+      } else {
+        // إذا فشل كلاهما، نحاول الفتح القسري للرابط الإلكتروني
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح واتساب، يرجى التأكد من تثبيت التطبيق')));
+      }
     }
   }
 }
