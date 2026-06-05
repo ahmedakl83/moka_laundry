@@ -4,6 +4,7 @@ import '../../core/constants.dart';
 import '../orders/orders_provider.dart';
 import '../expenses/expenses_provider.dart';
 import '../customers/customers_provider.dart';
+import '../../models/order_model.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -14,7 +15,8 @@ class ReportsScreen extends ConsumerWidget {
     final expenses = ref.watch(expensesProvider);
     final customers = ref.watch(customersProvider);
 
-    double totalIncome = orders.fold(0, (sum, item) => sum + item.paidAmount);
+    // كل الطلبات الآن مدفوعة بالكامل حسب التعديل الجديد
+    double totalIncome = orders.fold(0, (sum, item) => sum + item.totalPrice);
     double totalExpenses = expenses.fold(0, (sum, item) => sum + item.amount);
     double netProfit = totalIncome - totalExpenses;
     double totalDebt = customers.fold(0, (sum, item) => sum + item.balance);
@@ -30,7 +32,7 @@ class ReportsScreen extends ConsumerWidget {
         child: Column(
           children: [
             _buildSummaryCard(
-              title: 'إجمالي الإيرادات',
+              title: 'إجمالي الإيرادات (مدفوع)',
               amount: totalIncome,
               icon: Icons.trending_up,
               color: Colors.green,
@@ -49,30 +51,46 @@ class ReportsScreen extends ConsumerWidget {
               icon: Icons.account_balance_wallet,
               color: AppColors.primaryBlue,
             ),
-            const SizedBox(height: 16),
-            _buildSummaryCard(
-              title: 'الديون المستحقة',
-              amount: totalDebt,
-              icon: Icons.money_off,
-              color: Colors.orange,
-            ),
+            if (totalDebt > 0) ...[
+              const SizedBox(height: 16),
+              _buildSummaryCard(
+                title: 'ديون سابقة مستحقة',
+                amount: totalDebt,
+                icon: Icons.money_off,
+                color: Colors.orange,
+              ),
+            ],
             const SizedBox(height: 32),
-            const Text(
-              'تفاصيل الطلبات الأخيرة',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const Row(
+              children: [
+                Icon(Icons.history, color: AppColors.primaryBlue),
+                SizedBox(width: 8),
+                Text(
+                  'آخر العمليات المنفذة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            // قائمة مبسطة للطلبات الأخيرة
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: orders.length > 5 ? 5 : orders.length,
+              itemCount: orders.length > 10 ? 10 : orders.length,
               itemBuilder: (context, index) {
                 final order = orders[index];
-                return ListTile(
-                  title: Text('طلب رقم: ${order.serialNumber}'),
-                  subtitle: Text(order.customerName),
-                  trailing: Text('${order.totalPrice} ج.م'),
+                return Card(
+                  child: ListTile(
+                    leading: Icon(
+                      order.paymentMethod == PaymentMethod.cash ? Icons.money : Icons.account_balance_wallet,
+                      color: Colors.green,
+                    ),
+                    title: Text('${order.customerName} - ${order.totalPrice} ج.م'),
+                    subtitle: Text('رقم: ${order.serialNumber} | ${order.paymentMethod == PaymentMethod.cash ? "نقدي" : "محفظة"}'),
+                    trailing: Icon(
+                      order.status == OrderStatus.completed ? Icons.check_circle : Icons.pending_actions,
+                      color: order.status == OrderStatus.completed ? Colors.green : Colors.orange,
+                    ),
+                  ),
                 );
               },
             ),
@@ -99,8 +117,8 @@ class ReportsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                  Text('$amount ج.م', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                  Text(title, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                  Text('${amount.toStringAsFixed(2)} ج.م', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
                 ],
               ),
             ),

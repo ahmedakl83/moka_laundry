@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'ocr_service.dart';
+import 'dart:io';
 
 class PlateScannerScreen extends StatefulWidget {
   const PlateScannerScreen({super.key});
@@ -13,7 +13,6 @@ class _PlateScannerScreenState extends State<PlateScannerScreen> {
   CameraController? _controller;
   late List<CameraDescription> _cameras;
   bool _isInitializing = true;
-  final OCRService _ocrService = OCRService();
 
   @override
   void initState() {
@@ -25,7 +24,7 @@ class _PlateScannerScreenState extends State<PlateScannerScreen> {
     _cameras = await availableCameras();
     if (_cameras.isEmpty) return;
 
-    _controller = CameraController(_cameras[0], ResolutionPreset.medium);
+    _controller = CameraController(_cameras[0], ResolutionPreset.high);
     await _controller!.initialize();
     if (mounted) {
       setState(() {
@@ -37,22 +36,19 @@ class _PlateScannerScreenState extends State<PlateScannerScreen> {
   @override
   void dispose() {
     _controller?.dispose();
-    _ocrService.dispose();
     super.dispose();
   }
 
-  Future<void> _takePictureAndScan() async {
+  Future<void> _takePicture() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
 
     try {
       final XFile image = await _controller!.takePicture();
-      final String? result = await _ocrService.scanImage(image);
-
       if (mounted) {
-        Navigator.pop(context, result);
+        Navigator.pop(context, image.path);
       }
     } catch (e) {
-      debugPrint("Error scanning: $e");
+      debugPrint("Error taking picture: $e");
     }
   }
 
@@ -67,14 +63,21 @@ class _PlateScannerScreenState extends State<PlateScannerScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          CameraPreview(_controller!),
+          Center(child: CameraPreview(_controller!)),
+          // دليل بصري للمستخدم
           Center(
             child: Container(
-              width: 300,
-              height: 150,
+              width: MediaQuery.of(context).size.width * 0.8,
+              height: 200,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.green, width: 2),
+                border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
                 borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Text(
+                  "ضع اللوحة داخل الإطار",
+                  style: TextStyle(color: Colors.white, backgroundColor: Colors.black45),
+                ),
               ),
             ),
           ),
@@ -83,10 +86,24 @@ class _PlateScannerScreenState extends State<PlateScannerScreen> {
             left: 0,
             right: 0,
             child: Center(
-              child: FloatingActionButton(
-                onPressed: _takePictureAndScan,
-                backgroundColor: Colors.white,
-                child: const Icon(Icons.camera_alt, color: Colors.black),
+              child: GestureDetector(
+                onTap: _takePicture,
+                child: Container(
+                  height: 80,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 4),
+                  ),
+                  child: Container(
+                    margin: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt, size: 40),
+                  ),
+                ),
               ),
             ),
           ),

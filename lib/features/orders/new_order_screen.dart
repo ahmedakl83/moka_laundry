@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 import '../../core/constants.dart';
 import '../../models/customer_model.dart';
 import '../../models/order_model.dart';
@@ -18,14 +19,13 @@ class NewOrderScreen extends ConsumerStatefulWidget {
 }
 
 class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
-  final _carNumbersController = TextEditingController();
-  final _carLettersController = TextEditingController();
+  final _carNumberController = TextEditingController();
   final _notesController = TextEditingController();
-  final _paidAmountController = TextEditingController();
+  String? _capturedImagePath;
 
   CustomerModel? _selectedCustomer;
   List<ServiceModel> _selectedServices = [];
-  OrderStatus _selectedStatus = OrderStatus.paid;
+  PaymentMethod _paymentMethod = PaymentMethod.cash;
 
   double get _totalPrice => _selectedServices.fold(0, (sum, item) => sum + item.price);
 
@@ -40,12 +40,52 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
     });
   }
 
+  void _showAddCustomerDialog() {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إضافة عميل جديد'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم العميل')),
+            TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'رقم الهاتف'), keyboardType: TextInputType.phone),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              if (nameController.text.isNotEmpty) {
+                final newCustomer = CustomerModel(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: nameController.text,
+                  phone: phoneController.text,
+                );
+                ref.read(customersProvider.notifier).addCustomer(newCustomer.name, newCustomer.phone);
+                setState(() => _selectedCustomer = newCustomer);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _submitOrder() {
-    String carPlate = "${_carLettersController.text} ${_carNumbersController.text}".trim();
-    if (carPlate.isEmpty || _selectedServices.isEmpty) {
+    if (_capturedImagePath == null && _carNumberController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال بيانات اللوحة واختيار خدمة واحدة على الأقل')),
+        const SnackBar(content: Text('يرجى تصوير اللوحة أو إدخال رقم السيارة')),
       );
+      return;
+    }
+    if (_selectedServices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى اختيار خدمة واحدة على الأقل')));
       return;
     }
 
@@ -55,13 +95,12 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
       serialNumber: ref.read(ordersProvider.notifier).generateSerialNumber(),
       customerId: _selectedCustomer?.id,
       customerName: _selectedCustomer?.name ?? 'عميل نقدي',
-      carNumber: carPlate,
+      carNumber: _carNumberController.text.isEmpty ? null : _carNumberController.text,
+      carPlateImagePath: _capturedImagePath,
       services: _selectedServices,
       totalPrice: _totalPrice,
-      paidAmount: _selectedStatus == OrderStatus.debt
-          ? 0
-          : (_selectedStatus == OrderStatus.paid ? _totalPrice : (double.tryParse(_paidAmountController.text) ?? 0)),
-      status: _selectedStatus,
+      status: OrderStatus.pending,
+      paymentMethod: _paymentMethod,
       notes: _notesController.text,
       userId: user?.id ?? '',
       createdAt: DateTime.now(),
@@ -88,65 +127,87 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('العميل:', style: TextStyle(fontWeight: FontWeight.bold)),
-            DropdownButtonFormField<CustomerModel>(
-              value: _selectedCustomer,
-              items: customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
-              onChanged: (val) => setState(() => _selectedCustomer = val),
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-
-            const Text('رقم اللوحة (مصر):', style: TextStyle(fontWeight: FontWeight.bold)),
+            // قسم العميل
             Row(
               children: [
                 Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _carLettersController,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(
-                      hintText: 'حروف (أ ب ج)',
-                      border: OutlineInputBorder(),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('العميل:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      DropdownButtonFormField<CustomerModel>(
+                        value: _selectedCustomer,
+                        isExpanded: true,
+                        items: customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+                        onChanged: (val) => setState(() => _selectedCustomer = val),
+                        decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10)),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: _carNumbersController,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      hintText: 'أرقام (1234)',
-                      border: OutlineInputBorder(),
-                    ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: IconButton.filled(
+                    onPressed: _showAddCustomerDialog,
+                    icon: const Icon(Icons.person_add),
+                    backgroundColor: AppColors.primaryBlue,
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () async {
-                    final result = await Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PlateScannerScreen()),
-                    );
-                    if (result != null) {
-                      // محاولة تقسيم النتيجة لـ حروف وأرقام إذا أمكن
-                      setState(() {
-                        _carLettersController.text = result.replaceAll(RegExp(r'[0-9]'), '').trim();
-                        _carNumbersController.text = result.replaceAll(RegExp(r'[^0-9]'), '').trim();
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.camera_alt, color: AppColors.primaryBlue),
-                  style: IconButton.styleFrom(backgroundColor: AppColors.lightBlue.withOpacity(0.2)),
                 ),
               ],
             ),
+            const SizedBox(height: 20),
+
+            // قسم صورة اللوحة
+            const Text('صورة لوحة السيارة:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PlateScannerScreen()),
+                );
+                if (result != null) {
+                  setState(() => _capturedImagePath = result);
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
+                ),
+                child: _capturedImagePath != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(File(_capturedImagePath!), fit: BoxFit.cover),
+                      )
+                    : const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.camera_enhance, size: 50, color: AppColors.primaryBlue),
+                          SizedBox(height: 8),
+                          Text('اضغط لتصوير اللوحة'),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _carNumberController,
+              decoration: const InputDecoration(
+                labelText: 'رقم السيارة (اختياري حالياً)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.directions_car),
+              ),
+            ),
             const SizedBox(height: 24),
 
-            const Text('الخدمات المطلوبة:', style: TextStyle(fontWeight: FontWeight.bold)),
+            // قسم الخدمات
+            const Text('الخدمات المطلوب تنفيذها:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               children: services.map((s) {
@@ -168,47 +229,45 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
             ),
             const SizedBox(height: 24),
 
+            // الإجمالي
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.lightBlue.withOpacity(0.3),
+                color: AppColors.lightBlue.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryBlue),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('الإجمالي المستحق:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('إجمالي الحساب:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   Text('$_totalPrice ج.م', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
-            const Text('حالة الدفع:', style: TextStyle(fontWeight: FontWeight.bold)),
-            SegmentedButton<OrderStatus>(
-              segments: const [
-                ButtonSegment(value: OrderStatus.paid, label: Text('مدفوع')),
-                ButtonSegment(value: OrderStatus.partiallyPaid, label: Text('جزئي')),
-                ButtonSegment(value: OrderStatus.debt, label: Text('دين')),
-              ],
-              selected: {_selectedStatus},
-              onSelectionChanged: (set) => setState(() => _selectedStatus = set.first),
-            ),
-
-            if (_selectedStatus == OrderStatus.partiallyPaid) ...[
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _paidAmountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'المبلغ المدفوع حالياً',
-                  hintText: 'أدخل المبلغ',
-                  border: OutlineInputBorder(),
-                  suffixText: 'ج.م',
+            // طريقة الدفع
+            const Text('طريقة الدفع (بالكامل):', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Center(child: Text('نقدي')),
+                    selected: _paymentMethod == PaymentMethod.cash,
+                    onSelected: (val) => setState(() => _paymentMethod = PaymentMethod.cash),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Center(child: Text('تحويل محفظة')),
+                    selected: _paymentMethod == PaymentMethod.wallet,
+                    onSelected: (val) => setState(() => _paymentMethod = PaymentMethod.wallet),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 32),
 
             SizedBox(
@@ -221,7 +280,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('تأكيد وحفظ الطلب', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: const Text('بدء العملية وحفظ الطلب', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
