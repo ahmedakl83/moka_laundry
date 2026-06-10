@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "132184053408",
+    "project_id": "moka-car-wash",
+    "storage_bucket": "moka-car-wash.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:132184053408:android:004182de793c27ea0d9bc5",
+        "android_client_info": {
+          "package_name": "com.moka.wash.moka"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "132184053408-rnqksm761u47e3v9s8fjv7pdvadhl545.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSa1NVlPO13U10nGCEfr69b2FBaQ4bQxQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "132184053408-rnqksm761u47e3v9s8fjv7pdvadhl545.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../models/customer_model.dart';
 
 final customersProvider = StateNotifierProvider<CustomersNotifier, List<CustomerModel>>((ref) {
@@ -7,40 +8,53 @@ final customersProvider = StateNotifierProvider<CustomersNotifier, List<Customer
 });
 
 class CustomersNotifier extends StateNotifier<List<CustomerModel>> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
   CustomersNotifier() : super([]) {
     _init();
   }
 
-  void _init() {
-    _db.collection('customers').snapshots().listen((snapshot) {
-      if (snapshot.docs.isEmpty) {
-        // إضافة عميل نقدي افتراضي إذا كانت القائمة فارغة
-        addCustomer('عميل نقدي', '0000000000');
-      } else {
-        state = snapshot.docs.map((doc) => CustomerModel.fromMap(doc.data())).toList();
-      }
-    });
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final customersJson = prefs.getString('customers_list');
+
+    if (customersJson != null) {
+      final List decoded = json.decode(customersJson);
+      state = decoded.map((c) => CustomerModel.fromMap(c)).toList();
+    } else {
+      state = [
+        CustomerModel(id: '1', name: 'عميل نقدي', phone: '0000000000', balance: 0),
+      ];
+      _saveCustomers();
+    }
+  }
+
+  Future<void> _saveCustomers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = json.encode(state.map((c) => c.toMap()).toList());
+    await prefs.setString('customers_list', encoded);
   }
 
   CustomerModel addCustomer(String name, String phone) {
-    final docRef = _db.collection('customers').doc();
     final newCustomer = CustomerModel(
-      id: docRef.id,
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
       phone: phone,
       balance: 0.0,
     );
-    docRef.set(newCustomer.toMap());
+    state = [...state, newCustomer];
+    _saveCustomers();
     return newCustomer;
   }
 
-  Future<void> updateCustomer(CustomerModel updated) async {
-    await _db.collection('customers').doc(updated.id).update(updated.toMap());
+  void updateCustomer(CustomerModel updated) {
+    state = [
+      for (final customer in state)
+        if (customer.id == updated.id) updated else customer
+    ];
+    _saveCustomers();
   }
 
-  Future<void> deleteCustomer(String id) async {
-    await _db.collection('customers').doc(id).delete();
+  void deleteCustomer(String id) {
+    state = state.where((customer) => customer.id != id).toList();
+    _saveCustomers();
   }
 }

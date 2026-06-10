@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../models/expense_model.dart';
 import '../../models/expense_category_model.dart';
 
@@ -24,31 +25,28 @@ class ExpenseCategoriesNotifier extends StateNotifier<List<ExpenseCategoryModel>
 final expensesProvider = StateNotifierProvider<ExpensesNotifier, List<ExpenseModel>>((ref) => ExpensesNotifier());
 
 class ExpensesNotifier extends StateNotifier<List<ExpenseModel>> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
   ExpensesNotifier() : super([]) {
     _loadExpenses();
   }
 
-  void _loadExpenses() {
-    _db.collection('expenses').orderBy('date', descending: true).snapshots().listen((snapshot) {
-      state = snapshot.docs.map((doc) {
-        final data = doc.data();
-        if (data['date'] is Timestamp) {
-          data['date'] = (data['date'] as Timestamp).toDate().toIso8601String();
-        }
-        return ExpenseModel.fromMap(data);
-      }).toList();
-    });
+  Future<void> _loadExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final expensesJson = prefs.getString('expenses_history');
+    if (expensesJson != null) {
+      final List decoded = json.decode(expensesJson);
+      state = decoded.map((e) => ExpenseModel.fromMap(e)).toList();
+    }
   }
 
-  Future<void> addExpense(ExpenseModel expense) async {
-    final docRef = _db.collection('expenses').doc();
-    await docRef.set({
-      ...expense.toMap(),
-      'id': docRef.id,
-      'date': FieldValue.serverTimestamp(),
-    });
+  Future<void> _saveExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = json.encode(state.map((e) => e.toMap()).toList());
+    await prefs.setString('expenses_history', encoded);
+  }
+
+  void addExpense(ExpenseModel expense) {
+    state = [expense, ...state];
+    _saveExpenses();
   }
 
   List<ExpenseModel> getExpensesByDateRange(DateTime start, DateTime end) {

@@ -1,41 +1,83 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../models/order_model.dart';
 
 final ordersProvider = StateNotifierProvider<OrdersNotifier, List<OrderModel>>((ref) => OrdersNotifier());
 
 class OrdersNotifier extends StateNotifier<List<OrderModel>> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
   OrdersNotifier() : super([]) {
     _loadOrders();
   }
 
-  void _loadOrders() {
-    _db.collection('orders').orderBy('createdAt', descending: true).snapshots().listen((snapshot) {
-      state = snapshot.docs.map((doc) {
-        final data = doc.data();
-        // تحويل الـ Timestamp من Firestore إلى DateTime لـ OrderModel
-        if (data['createdAt'] is Timestamp) {
-          data['createdAt'] = (data['createdAt'] as Timestamp).toDate().toIso8601String();
-        }
-        return OrderModel.fromMap(data);
-      }).toList();
-    });
+  Future<void> _loadOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ordersJson = prefs.getString('orders_history');
+    if (ordersJson != null) {
+      final List decoded = json.decode(ordersJson);
+      state = decoded.map((o) => OrderModel.fromMap(o)).toList();
+    }
   }
 
-  Future<void> addOrder(OrderModel order) async {
-    final docRef = _db.collection('orders').doc(order.id);
-    await docRef.set({
-      ...order.toMap(),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> _saveOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = json.encode(state.map((o) => o.toMap()).toList());
+    await prefs.setString('orders_history', encoded);
   }
 
-  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
-    await _db.collection('orders').doc(orderId).update({
-      'status': newStatus.name,
-    });
+  void addOrder(OrderModel order) {
+    state = [order, ...state];
+    _saveOrders();
+  }
+
+  void updateOrderStatus(String orderId, OrderStatus newStatus) {
+    state = [
+      for (final order in state)
+        if (order.id == orderId)
+          OrderModel(
+            id: order.id,
+            serialNumber: order.serialNumber,
+            customerId: order.customerId,
+            customerName: order.customerName,
+            carNumber: order.carNumber,
+            carPlateImagePath: order.carPlateImagePath,
+            services: order.services,
+            totalPrice: order.totalPrice,
+            status: newStatus,
+            paymentMethod: order.paymentMethod,
+            notes: order.notes,
+            userId: order.userId,
+            createdAt: order.createdAt,
+          )
+        else
+          order
+    ];
+    _saveOrders();
+  }
+
+  void updateCarNumber(String orderId, String newCarNumber) {
+    state = [
+      for (final order in state)
+        if (order.id == orderId)
+          OrderModel(
+            id: order.id,
+            serialNumber: order.serialNumber,
+            customerId: order.customerId,
+            customerName: order.customerName,
+            carNumber: newCarNumber,
+            carPlateImagePath: order.carPlateImagePath,
+            services: order.services,
+            totalPrice: order.totalPrice,
+            status: order.status,
+            paymentMethod: order.paymentMethod,
+            notes: order.notes,
+            userId: order.userId,
+            createdAt: order.createdAt,
+          )
+        else
+          order
+    ];
+    _saveOrders();
   }
 
   List<OrderModel> getOrdersByDateRange(DateTime start, DateTime end) {

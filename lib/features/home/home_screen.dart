@@ -10,7 +10,7 @@ import '../orders/operations_screen.dart';
 import '../expenses/expenses_screen.dart';
 import '../reports/reports_screen.dart';
 import '../auth/users_screen.dart';
-import '../auth/client_invite_screen.dart';
+import '../backup/backup_service.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -136,11 +136,14 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       _buildMenuCard(
                         context,
-                        title: 'ربط جهاز',
-                        icon: Icons.phonelink_setup,
+                        title: 'نسخة احتياطية',
+                        icon: Icons.backup,
                         color: Colors.blueGrey,
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ClientInviteScreen()));
+                        onTap: () async {
+                          await BackupService.createAndShareBackup();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('تم تجهيز النسخة الاحتياطية')),
+                          );
                         },
                       ),
                     ],

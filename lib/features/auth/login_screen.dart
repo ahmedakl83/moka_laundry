@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import 'auth_provider.dart';
 import 'admin_setup_screen.dart';
-// import '../home/home_screen.dart'; // سننشئها لاحقاً
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -39,41 +38,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               MaterialPageRoute(builder: (_) => const AdminSetupScreen()),
             );
           }
-        } else {
-          // التوجه للشاشة الرئيسية
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم تسجيل الدخول بنجاح')),
-          );
         }
       }
     }
-  }
-
-  void _showCodeLoginDialog(BuildContext context) {
-    final codeController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('دخول جهاز الموظف'),
-        content: TextField(
-          controller: codeController,
-          decoration: const InputDecoration(labelText: 'أدخل كود الربط'),
-          keyboardType: TextInputType.number,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () async {
-              final success = await ref.read(authProvider.notifier).login('code', codeController.text);
-              if (success && mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('دخول'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -107,18 +74,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextFormField(
                     controller: _usernameController,
                     decoration: InputDecoration(
-                      labelText: 'اسم المستخدم',
-                      prefixIcon: const Icon(Icons.person),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      labelText: 'اسم مستخدم المدير',
+                      prefixIcon: const Icon(Icons.admin_panel_settings),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'يرجى إدخال اسم المستخدم';
-                      }
-                      return null;
-                    },
+                    validator: (value) => value == null || value.isEmpty ? 'يرجى إدخال اسم المستخدم' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -127,25 +87,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: 'كلمة المرور',
                       prefixIcon: const Icon(Icons.lock),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'يرجى إدخال كلمة المرور';
-                      }
-                      return null;
-                    },
+                    validator: (value) => value == null || value.isEmpty ? 'يرجى إدخال كلمة المرور' : null,
                   ),
                   const SizedBox(height: 24),
                   if (authState.error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        authState.error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
+                      child: Text(authState.error!, style: const TextStyle(color: Colors.red)),
                     ),
                   SizedBox(
                     width: double.infinity,
@@ -155,26 +105,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBlue,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: authState.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('تسجيل الدخول', style: TextStyle(fontSize: 18)),
+                          : const Text('دخول كمدير', style: TextStyle(fontSize: 18)),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () {
-                      _showCodeLoginDialog(context);
-                    },
-                    child: const Text('الدخول بواسطة كود (لجهاز الموظف)'),
+                  const SizedBox(height: 20),
+                  const Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("أو")),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: () => ref.read(authProvider.notifier).loginAsEmployee(),
+                      icon: const Icon(Icons.person),
+                      label: const Text('دخول كموظف', style: TextStyle(fontSize: 18)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryBlue,
+                        side: const BorderSide(color: AppColors.primaryBlue),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   if (authState.isFirstRun)
                     const Text(
-                      'ملاحظة: هذا هو التشغيل الأول للتطبيق. استخدم بيانات المسؤول الافتراضية.',
+                      'ملاحظة: هذا هو التشغيل الأول. استخدم admin / admin123',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppColors.grey, fontSize: 12),
                     ),

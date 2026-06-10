@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 import '../../core/constants.dart';
 import '../../models/order_model.dart';
 import 'orders_provider.dart';
@@ -49,6 +50,31 @@ class OperationsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                if (order.carPlateImagePath != null)
+                  GestureDetector(
+                    onTap: () => _showEditPlateDialog(context, ref, order),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      height: 120,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: DecorationImage(
+                          image: FileImage(File(order.carPlateImagePath!)),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.edit, color: Colors.white, size: 30),
+                      ),
+                    ),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: () => _showEditPlateDialog(context, ref, order),
+                    icon: const Icon(Icons.edit),
+                    label: const Text('إدخال رقم اللوحة'),
+                  ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -117,6 +143,52 @@ class OperationsScreen extends ConsumerWidget {
       case OrderStatus.ready: return Colors.orange;
       default: return Colors.green;
     }
+  }
+
+  void _showEditPlateDialog(BuildContext context, WidgetRef ref, OrderModel order) {
+    final controller = TextEditingController(text: order.carNumber);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تسجيل رقم اللوحة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (order.carPlateImagePath != null)
+              Container(
+                height: 150,
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  image: DecorationImage(
+                    image: FileImage(File(order.carPlateImagePath!)),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'رقم السيارة',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              ref.read(ordersProvider.notifier).updateCarNumber(order.id, controller.text);
+              Navigator.pop(context);
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _notifyCustomer(BuildContext context, WidgetRef ref, OrderModel order) async {
