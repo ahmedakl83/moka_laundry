@@ -151,31 +151,49 @@ class OperationsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تسجيل رقم اللوحة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (order.carPlateImagePath != null)
-              Container(
-                height: 150,
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: FileImage(File(order.carPlateImagePath!)),
-                    fit: BoxFit.contain,
-                  ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (order.carPlateImagePath != null)
+                Column(
+                  children: [
+                    const Text('يمكنك تكبير الصورة باللمس لرؤية الرقم بوضوح', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 300, // زيادة الارتفاع
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: InteractiveViewer(
+                          panEnabled: true,
+                          boundaryMargin: const EdgeInsets.all(20),
+                          minScale: 0.5,
+                          maxScale: 4,
+                          child: Image.file(
+                            File(order.carPlateImagePath!),
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'رقم السيارة',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
               ),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'رقم السيارة',
-                border: OutlineInputBorder(),
-              ),
-              autofocus: true,
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
