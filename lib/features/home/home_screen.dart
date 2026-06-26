@@ -42,6 +42,9 @@ class HomeScreen extends ConsumerWidget {
               );
               if (confirm == true) {
                 ref.read(authProvider.notifier).logout();
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                }
               }
             },
           ),
@@ -140,10 +143,7 @@ class HomeScreen extends ConsumerWidget {
                         icon: Icons.backup,
                         color: Colors.blueGrey,
                         onTap: () async {
-                          await BackupService.createAndShareBackup();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('تم تجهيز النسخة الاحتياطية')),
-                          );
+                          _showBackupOptions(context);
                         },
                       ),
                     ],
@@ -152,6 +152,65 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showBackupOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('إدارة النسخ الاحتياطي', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.cloud_upload, color: Colors.deepOrange),
+              title: const Text('حفظ نسخة على Google Drive'),
+              subtitle: const Text('سيتم تنظيم النسخ في مجلدات شهرية تلقائياً'),
+              onTap: () async {
+                Navigator.pop(context);
+                final success = await BackupService.uploadToGoogleDrive();
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم رفع النسخة الاحتياطية بنجاح إلى Google Drive')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('فشل الرفع، يرجى التحقق من تسجيل الدخول والإنترنت')),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.upload_file, color: Colors.blue),
+              title: const Text('مشاركة نسخة يدوية'),
+              subtitle: const Text('إرسال الملف عبر واتساب أو تطبيقات أخرى'),
+              onTap: () async {
+                Navigator.pop(context);
+                await BackupService.createAndShareBackup();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download_for_offline, color: Colors.green),
+              title: const Text('استعادة نسخة احتياطية'),
+              subtitle: const Text('اختر ملف .json الذي قمت بحفظه مسبقاً'),
+              onTap: () async {
+                Navigator.pop(context);
+                final success = await BackupService.pickAndRestoreBackup();
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تمت استعادة البيانات بنجاح. يرجى إعادة تشغيل التطبيق لظهورها.')),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );

@@ -17,9 +17,9 @@ class ServicesNotifier extends StateNotifier<List<ServiceModel>> {
       state = (json.decode(json_) as List).map((s) => ServiceModel.fromMap(s)).toList();
     } else {
       state = [
-        ServiceModel(id: '1', name: 'غسيل خارجي', price: 20),
-        ServiceModel(id: '2', name: 'غسيل كامل', price: 50),
-        ServiceModel(id: '3', name: 'تلميع ساطع', price: 150),
+        ServiceModel(id: '1', name: 'غسيل خارجي', basePrice: 20, tip: 0),
+        ServiceModel(id: '2', name: 'غسيل كامل', basePrice: 40, tip: 10),
+        ServiceModel(id: '3', name: 'تلميع ساطع', basePrice: 130, tip: 20),
       ];
       _saveServices();
     }
@@ -30,8 +30,13 @@ class ServicesNotifier extends StateNotifier<List<ServiceModel>> {
     await prefs.setString('services_list', json.encode(state.map((s) => s.toMap()).toList()));
   }
 
-  void addService(String name, double price) {
-    state = [...state, ServiceModel(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name, price: price)];
+  void addService(String name, double basePrice, double tip) {
+    state = [...state, ServiceModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      basePrice: basePrice,
+      tip: tip
+    )];
     _saveServices();
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/constants.dart';
 import '../../models/customer_model.dart';
 import '../../models/order_model.dart';
@@ -10,6 +12,7 @@ import '../services/services_provider.dart';
 import '../auth/auth_provider.dart';
 import '../ocr/plate_scanner_screen.dart';
 import 'orders_provider.dart';
+import '../../core/plate_formatter.dart';
 
 class NewOrderScreen extends ConsumerStatefulWidget {
   const NewOrderScreen({super.key});
@@ -21,13 +24,14 @@ class NewOrderScreen extends ConsumerStatefulWidget {
 class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
   final _carNumberController = TextEditingController();
   final _notesController = TextEditingController();
+  final _customerSearchController = TextEditingController();
   String? _capturedImagePath;
 
   CustomerModel? _selectedCustomer;
   List<ServiceModel> _selectedServices = [];
   PaymentMethod _paymentMethod = PaymentMethod.cash;
 
-  double get _totalPrice => _selectedServices.fold(0, (sum, item) => sum + item.price);
+  double get _totalPrice => _selectedServices.fold(0, (sum, item) => sum + item.totalPrice);
 
   @override
   void initState() {
@@ -35,9 +39,57 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final customers = ref.read(customersProvider);
       if (customers.isNotEmpty) {
-        setState(() => _selectedCustomer = customers.first);
+        setState(() {
+          _selectedCustomer = customers.first;
+          _customerSearchController.text = _selectedCustomer!.name;
+        });
       }
     });
+  }
+
+  Future<void> _pickFromContacts(TextEditingController nameCtrl, TextEditingController phoneCtrl) async {
+    if (await Permission.contacts.request().isGranted) {
+      final contact = await FlutterContacts.openExternalPick();
+      if (contact != null) {
+        final fullContact = await FlutterContacts.getContact(contact.id);
+        if (fullContact != null) {
+          nameCtrl.text = fullContact.displayName;
+          if (fullContact.phones.isNotEmpty) {
+            if (fullContact.phones.length == 1) {
+              phoneCtrl.text = fullContact.phones.first.number;
+            } else {
+              if (mounted) {
+                final selectedPhone = await showDialog<String>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('اختر رقم الهاتف'),
+                    content: SizedBox(
+                      width: double.maxFinite,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: fullContact.phones.length,
+                        itemBuilder: (context, index) => ListTile(
+                          title: Text(fullContact.phones[index].number),
+                          subtitle: Text(fullContact.phones[index].label.name),
+                          onTap: () => Navigator.pop(context, fullContact.phones[index].number),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+                if (selectedPhone != null) {
+                  phoneCtrl.text = selectedPhone;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يجب منح صلاحية الوصول لجهات الاتصال')));
+      }
+    }
   }
 
   void _showAddCustomerDialog() {
@@ -46,36 +98,69 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('إضافة عميل جديد'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم العميل')),
-            TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'رقم الهاتف'), keyboardType: TextInputType.phone),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('إضافة عميل جديد'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await _pickFromContacts(nameController, phoneController);
+                  setStateDialog(() {});
+                },
+                icon: const Icon(Icons.contact_phone),
+                label: const Text('اختيار من جهات الاتصال'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+              ),
+              const SizedBox(height: 16),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم العميل')),
+              TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'رقم الهاتف', suffixIcon: Icon(Icons.phone)), keyboardType: TextInputType.phone),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isNotEmpty) {
+                  final newCustomer = ref.read(customersProvider.notifier).addCustomer(
+                    nameController.text,
+                    phoneController.text,
+                  );
+                  setState(() {
+                    _selectedCustomer = newCustomer;
+                    _customerSearchController.text = newCustomer.name;
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('إضافة'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty) {
-                final newCustomer = ref.read(customersProvider.notifier).addCustomer(
-                  nameController.text,
-                  phoneController.text,
-                );
-                setState(() => _selectedCustomer = newCustomer);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('إضافة'),
-          ),
-        ],
       ),
     );
   }
 
   void _submitOrder() {
+    // التحقق من حالة العميل إذا كان هناك نص مكتوب ولم يتم الاختيار
+    if (_selectedCustomer == null && _customerSearchController.text.isNotEmpty) {
+      final customers = ref.read(customersProvider);
+      final match = customers.where((c) => c.name.trim() == _customerSearchController.text.trim()).toList();
+
+      if (match.length == 1) {
+        _selectedCustomer = match.first;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يرجى اختيار العميل من القائمة الظاهرة أو الضغط على زر إضافة عميل جديد'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
     if (_capturedImagePath == null && _carNumberController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يرجى تصوير اللوحة أو إدخال رقم السيارة')),
@@ -98,7 +183,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
       services: _selectedServices,
       totalPrice: _totalPrice,
       status: OrderStatus.pending,
-      paymentMethod: _paymentMethod,
+      paymentMethod: PaymentMethod.pending,
       notes: _notesController.text,
       userId: user?.id ?? '',
       createdAt: DateTime.now(),
@@ -134,19 +219,72 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('العميل:', style: TextStyle(fontWeight: FontWeight.bold)),
-                        DropdownButtonFormField<CustomerModel>(
-                          value: customers.contains(_selectedCustomer) ? _selectedCustomer : (customers.isNotEmpty ? customers.first : null),
-                          isExpanded: true,
-                          items: customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
-                          onChanged: (val) => setState(() => _selectedCustomer = val),
-                          decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10)),
+                        const SizedBox(height: 4),
+                        Autocomplete<CustomerModel>(
+                          displayStringForOption: (CustomerModel c) => c.name,
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.isEmpty) {
+                              return customers;
+                            }
+                            return customers.where((CustomerModel c) {
+                              return c.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                                     c.phone.contains(textEditingValue.text);
+                            });
+                          },
+                          onSelected: (CustomerModel c) {
+                            setState(() => _selectedCustomer = c);
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            // ربط المتحكم الخارجي بالمتحكم الخاص بالـ Autocomplete
+                            if (_customerSearchController.text.isNotEmpty && controller.text.isEmpty) {
+                               controller.text = _customerSearchController.text;
+                            }
+                            controller.addListener(() {
+                              _customerSearchController.text = controller.text;
+                            });
+
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                                hintText: 'ابحث باسم العميل أو رقمه...',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                            );
+                          },
+                          optionsViewBuilder: (context, onSelected, options) {
+                            return Align(
+                              alignment: Alignment.topRight,
+                              child: Material(
+                                elevation: 4.0,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(maxHeight: 200, maxWidth: MediaQuery.of(context).size.width * 0.7),
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    itemBuilder: (BuildContext context, int index) {
+                                      final CustomerModel option = options.elementAt(index);
+                                      return ListTile(
+                                        title: Text(option.name),
+                                        subtitle: Text(option.phone),
+                                        onTap: () => onSelected(option),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
                   Padding(
-                    padding: const EdgeInsets.only(top: 20),
+                    padding: const EdgeInsets.only(top: 24),
                     child: IconButton.filled(
                       onPressed: _showAddCustomerDialog,
                       icon: const Icon(Icons.person_add),
@@ -196,6 +334,8 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _carNumberController,
+                inputFormatters: [PlateNumberFormatter()],
+                style: const TextStyle(fontFamily: 'Calibri', fontWeight: FontWeight.bold, fontSize: 18),
                 decoration: const InputDecoration(
                   labelText: 'رقم السيارة (اختياري حالياً)',
                   border: OutlineInputBorder(),
@@ -238,34 +378,10 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('إجمالي الحساب:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('إجمالي الحساب المبدئي:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     Text('$_totalPrice ج.م', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // طريقة الدفع
-              const Text('طريقة الدفع (بالكامل):', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Center(child: Text('نقدي')),
-                      selected: _paymentMethod == PaymentMethod.cash,
-                      onSelected: (val) => setState(() => _paymentMethod = PaymentMethod.cash),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Center(child: Text('تحويل محفظة')),
-                      selected: _paymentMethod == PaymentMethod.wallet,
-                      onSelected: (val) => setState(() => _paymentMethod = PaymentMethod.wallet),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 32),
 
@@ -282,7 +398,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                   child: const Text('بدء العملية وحفظ الطلب', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),
-              const SizedBox(height: 50), // مساحة إضافية كبيرة لضمان عدم التداخل
+              const SizedBox(height: 50),
             ],
           ),
         ),

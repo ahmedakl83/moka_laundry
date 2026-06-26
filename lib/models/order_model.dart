@@ -1,15 +1,15 @@
 import 'service_model.dart';
 
 enum OrderStatus { pending, washing, ready, completed, cancelled }
-enum PaymentMethod { cash, wallet }
+enum PaymentMethod { cash, wallet, pending }
 
 class OrderModel {
   final String id;
   final String serialNumber;
   final String? customerId;
   final String customerName;
-  final String? carNumber; // يمكن أن يكون فارغاً ليقوم الأدمن بإدخاله لاحقاً
-  final String? carPlateImagePath; // مسار صورة اللوحة
+  final String? carNumber;
+  final String? carPlateImagePath;
   final List<ServiceModel> services;
   final double totalPrice;
   final OrderStatus status;
@@ -33,6 +33,31 @@ class OrderModel {
     required this.userId,
     required this.createdAt,
   });
+
+  OrderModel copyWith({
+    String? carNumber,
+    List<ServiceModel>? services,
+    double? totalPrice,
+    OrderStatus? status,
+    PaymentMethod? paymentMethod,
+    String? notes,
+  }) {
+    return OrderModel(
+      id: id,
+      serialNumber: serialNumber,
+      customerId: customerId,
+      customerName: customerName,
+      carNumber: carNumber ?? this.carNumber,
+      carPlateImagePath: carPlateImagePath,
+      services: services ?? this.services,
+      totalPrice: totalPrice ?? this.totalPrice,
+      status: status ?? this.status,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      notes: notes ?? this.notes,
+      userId: userId,
+      createdAt: createdAt,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -70,7 +95,7 @@ class OrderModel {
       ),
       paymentMethod: PaymentMethod.values.firstWhere(
         (e) => e.name == map['paymentMethod'],
-        orElse: () => PaymentMethod.cash,
+        orElse: () => PaymentMethod.pending,
       ),
       notes: map['notes'] ?? '',
       userId: map['userId'] ?? '',

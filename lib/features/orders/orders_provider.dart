@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../models/order_model.dart';
+import '../../models/service_model.dart';
 
 final ordersProvider = StateNotifierProvider<OrdersNotifier, List<OrderModel>>((ref) => OrdersNotifier());
 
@@ -30,24 +31,27 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
     _saveOrders();
   }
 
-  void updateOrderStatus(String orderId, OrderStatus newStatus) {
+  void updateOrderStatus(String orderId, OrderStatus newStatus, {PaymentMethod? paymentMethod}) {
     state = [
       for (final order in state)
         if (order.id == orderId)
-          OrderModel(
-            id: order.id,
-            serialNumber: order.serialNumber,
-            customerId: order.customerId,
-            customerName: order.customerName,
-            carNumber: order.carNumber,
-            carPlateImagePath: order.carPlateImagePath,
-            services: order.services,
-            totalPrice: order.totalPrice,
+          order.copyWith(
             status: newStatus,
-            paymentMethod: order.paymentMethod,
-            notes: order.notes,
-            userId: order.userId,
-            createdAt: order.createdAt,
+            paymentMethod: paymentMethod,
+          )
+        else
+          order
+    ];
+    _saveOrders();
+  }
+
+  void addServiceToOrder(String orderId, ServiceModel service) {
+    state = [
+      for (final order in state)
+        if (order.id == orderId)
+          order.copyWith(
+            services: [...order.services, service],
+            totalPrice: order.totalPrice + service.price,
           )
         else
           order

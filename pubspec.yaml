@@ -19,6 +19,13 @@ dependencies:
   url_launcher: ^6.3.1
   share_plus: ^10.1.4
   path_provider: ^2.1.5
+  file_picker: ^8.1.7
+  flutter_contacts: ^1.1.9+2
+  permission_handler: ^11.3.1
+  googleapis: ^13.2.0
+  google_sign_in: ^6.2.1
+  extension_google_sign_in_as_googleapis_auth: ^2.0.13
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -36,3 +43,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.jpeg
+    - assets/calibrib.ttf
+
+  fonts:
+    - family: Calibri
+      fonts:
+        - asset: assets/calibrib.ttf

@@ -7,6 +7,8 @@ import '../expenses/expenses_provider.dart';
 import '../../models/order_model.dart';
 import '../../models/expense_model.dart';
 
+enum ReportFilter { today, week, month, total, custom }
+
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
@@ -15,17 +17,66 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  ReportFilter _selectedFilter = ReportFilter.month;
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
+
+  void _updateDateRange(ReportFilter filter) {
+    final now = DateTime.now();
+    setState(() {
+      _selectedFilter = filter;
+      switch (filter) {
+        case ReportFilter.today:
+          _startDate = DateTime(now.year, now.month, now.day);
+          _endDate = now;
+          break;
+        case ReportFilter.week:
+          int daysToSubtract = (now.weekday + 1) % 7;
+          _startDate = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysToSubtract));
+          _endDate = now;
+          break;
+        case ReportFilter.month:
+          _startDate = DateTime(now.year, now.month, 1);
+          _endDate = now;
+          break;
+        case ReportFilter.total:
+          _startDate = DateTime(2024, 1, 1);
+          _endDate = now;
+          break;
+        case ReportFilter.custom:
+          break;
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _updateDateRange(ReportFilter.month);
+  }
 
   @override
   Widget build(BuildContext context) {
     final allOrders = ref.watch(ordersProvider.notifier).getOrdersByDateRange(_startDate, _endDate);
     final allExpenses = ref.watch(expensesProvider.notifier).getExpensesByDateRange(_startDate, _endDate);
 
-    double totalIncome = allOrders.fold(0, (sum, item) => sum + item.totalPrice);
+    double totalTips = 0;
+    double totalBaseIncome = 0;
+
+    for (var order in allOrders) {
+      for (var service in order.services) {
+        totalTips += service.tip;
+        totalBaseIncome += service.basePrice;
+      }
+    }
+
     double totalExpenses = allExpenses.fold(0, (sum, item) => sum + item.amount);
-    double netProfit = totalIncome - totalExpenses;
+    double netProfit = totalBaseIncome - totalExpenses;
+
+    // تصفية عمليات اليوم فقط للقسم السفلي
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayOrders = allOrders.where((o) => o.createdAt.isAfter(todayStart)).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -45,9 +96,35 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildFilterChips(),
+              const SizedBox(height: 16),
               _buildDateRangeIndicator(),
               const SizedBox(height: 20),
-              _buildSummaryRow(totalIncome, totalExpenses, netProfit),
+
+              // ملحوظة الإكراميات
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  border: Border.all(color: Colors.amber.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'ملحوظة: الإكراميات تُوزع على العمال ولا تُحسب ضمن دخل المغسلة الصافي.',
+                        style: TextStyle(fontSize: 12, color: Colors.brown),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              _buildSummaryRow(totalBaseIncome, totalTips, totalExpenses, netProfit),
               const SizedBox(height: 32),
               const Text('إحصائيات طرق الدفع:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
@@ -56,10 +133,87 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               const Text('أكثر الخدمات طلباً:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               _buildServiceStats(allOrders),
+              const SizedBox(height: 32),
+              const Divider(thickness: 2),
+              const SizedBox(height: 16),
+              const Text('عمليات اليوم وتفاصيل الحساب:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+              const SizedBox(height: 12),
+              _buildTodayOrdersList(todayOrders),
               const SizedBox(height: 50),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTodayOrdersList(List<OrderModel> orders) {
+    if (orders.isEmpty) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: Text('لا توجد عمليات مسجلة لهذا اليوم حتى الآن'),
+      ));
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: orders.length,
+      itemBuilder: (context, index) {
+        final order = orders[index];
+        double orderTips = order.services.fold(0, (sum, s) => sum + s.tip);
+        double orderBase = order.services.fold(0, (sum, s) => sum + s.basePrice);
+
+        return Card(
+          elevation: 1,
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Text('${order.customerName} (${order.carNumber ?? "بدون رقم"})'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(intl.DateFormat('hh:mm a').format(order.createdAt)),
+                Text('خدمة: $orderBase | إكرامية: $orderTips', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+            trailing: Text('${order.totalPrice} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16)),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _filterChip('اليوم', ReportFilter.today),
+          _filterChip('هذا الأسبوع', ReportFilter.week),
+          _filterChip('هذا الشهر', ReportFilter.month),
+          _filterChip('الكل', ReportFilter.total),
+          _filterChip('مخصص', ReportFilter.custom),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, ReportFilter filter) {
+    final isSelected = _selectedFilter == filter;
+    return Padding(
+      padding: const EdgeInsets.only(left: 8.0),
+      child: FilterChip(
+        label: Text(label),
+        selected: isSelected,
+        onSelected: (selected) {
+          if (filter == ReportFilter.custom) {
+            _selectDateRange(context);
+          } else {
+            _updateDateRange(filter);
+          }
+        },
+        selectedColor: AppColors.primaryBlue.withOpacity(0.2),
+        checkmarkColor: AppColors.primaryBlue,
       ),
     );
   }
@@ -80,14 +234,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildSummaryRow(double income, double expenses, double profit) {
+  Widget _buildSummaryRow(double baseIncome, double tips, double expenses, double profit) {
     return Column(
       children: [
-        _buildStatCard('إجمالي الإيرادات', income, Colors.green),
+        _buildStatCard('إيرادات الخدمات (المغسلة)', baseIncome, Colors.green),
+        const SizedBox(height: 12),
+        _buildStatCard('إجمالي الإكراميات (للعمال)', tips, Colors.orange),
         const SizedBox(height: 12),
         _buildStatCard('إجمالي المصروفات', expenses, Colors.red),
         const SizedBox(height: 12),
-        _buildStatCard('صافي الربح', profit, AppColors.primaryBlue),
+        _buildStatCard('صافي ربح المغسلة', profit, AppColors.primaryBlue),
       ],
     );
   }
@@ -166,6 +322,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
     if (picked != null) {
       setState(() {
+        _selectedFilter = ReportFilter.custom;
         _startDate = picked.start;
         _endDate = picked.end;
       });

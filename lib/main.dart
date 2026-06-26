@@ -23,6 +23,7 @@ class MokaApp extends ConsumerWidget {
     final authState = ref.watch(authProvider);
 
     return MaterialApp(
+      key: ValueKey(authState.user?.id),
       title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar', 'SA'),
