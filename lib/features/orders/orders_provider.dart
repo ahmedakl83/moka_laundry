@@ -38,6 +38,7 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
           order.copyWith(
             status: newStatus,
             paymentMethod: paymentMethod,
+            completedAt: newStatus == OrderStatus.completed ? DateTime.now() : null,
           )
         else
           order
@@ -63,21 +64,7 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
     state = [
       for (final order in state)
         if (order.id == orderId)
-          OrderModel(
-            id: order.id,
-            serialNumber: order.serialNumber,
-            customerId: order.customerId,
-            customerName: order.customerName,
-            carNumber: newCarNumber,
-            carPlateImagePath: order.carPlateImagePath,
-            services: order.services,
-            totalPrice: order.totalPrice,
-            status: order.status,
-            paymentMethod: order.paymentMethod,
-            notes: order.notes,
-            userId: order.userId,
-            createdAt: order.createdAt,
-          )
+          order.copyWith(carNumber: newCarNumber)
         else
           order
     ];
@@ -87,13 +74,14 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
   List<OrderModel> getOrdersByDateRange(DateTime start, DateTime end) {
     return state.where((o) =>
       o.createdAt.isAfter(start.subtract(const Duration(seconds: 1))) &&
-      o.createdAt.isBefore(end.add(const Duration(days: 1)))
+      o.createdAt.isBefore(end)
     ).toList();
   }
 
   String generateSerialNumber() {
     final now = DateTime.now();
-    final datePart = "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}";
+    final busDate = now.hour < 3 ? now.subtract(const Duration(days: 1)) : now;
+    final datePart = "${busDate.year}${busDate.month.toString().padLeft(2, '0')}${busDate.day.toString().padLeft(2, '0')}";
     return "$datePart${state.length + 1}";
   }
 }

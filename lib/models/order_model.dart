@@ -17,6 +17,7 @@ class OrderModel {
   final String notes;
   final String userId;
   final DateTime createdAt;
+  final DateTime? completedAt;
 
   OrderModel({
     required this.id,
@@ -32,6 +33,7 @@ class OrderModel {
     required this.notes,
     required this.userId,
     required this.createdAt,
+    this.completedAt,
   });
 
   OrderModel copyWith({
@@ -41,6 +43,7 @@ class OrderModel {
     OrderStatus? status,
     PaymentMethod? paymentMethod,
     String? notes,
+    DateTime? completedAt,
   }) {
     return OrderModel(
       id: id,
@@ -56,6 +59,7 @@ class OrderModel {
       notes: notes ?? this.notes,
       userId: userId,
       createdAt: createdAt,
+      completedAt: completedAt ?? this.completedAt,
     );
   }
 
@@ -74,6 +78,7 @@ class OrderModel {
       'notes': notes,
       'userId': userId,
       'createdAt': createdAt.toIso8601String(),
+      'completedAt': completedAt?.toIso8601String(),
     };
   }
 
@@ -100,6 +105,7 @@ class OrderModel {
       notes: map['notes'] ?? '',
       userId: map['userId'] ?? '',
       createdAt: DateTime.parse(map['createdAt']),
+      completedAt: map['completedAt'] != null ? DateTime.parse(map['completedAt']) : null,
     );
   }
 }

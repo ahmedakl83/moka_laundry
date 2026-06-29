@@ -52,7 +52,7 @@ class ExpensesNotifier extends StateNotifier<List<ExpenseModel>> {
   List<ExpenseModel> getExpensesByDateRange(DateTime start, DateTime end) {
     return state.where((e) =>
       e.date.isAfter(start.subtract(const Duration(seconds: 1))) &&
-      e.date.isBefore(end.add(const Duration(days: 1)))
+      e.date.isBefore(end)
     ).toList();
   }
 }

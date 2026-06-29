@@ -14,3 +14,15 @@ class AppStrings {
   static const String adminDefaultUsername = "admin";
   static const String adminDefaultPassword = "admin123";
 }
+
+class DateTimeUtils {
+  static DateTime getBusinessDayStart([DateTime? time]) {
+    final t = time ?? DateTime.now();
+    if (t.hour < 3) {
+      return DateTime(t.year, t.month, t.day, 3, 0).subtract(const Duration(days: 1));
+    } else {
+      return DateTime(t.year, t.month, t.day, 3, 0);
+    }
+  }
+}
+

@@ -29,8 +29,12 @@ class OperationsScreen extends ConsumerWidget {
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
+    final businessDayStart = DateTimeUtils.getBusinessDayStart();
     final completedOrders = orders
-        .where((o) => o.status == OrderStatus.completed)
+        .where((o) => o.status == OrderStatus.completed &&
+            (o.completedAt != null
+                ? o.completedAt!.isAfter(businessDayStart)
+                : o.createdAt.isAfter(businessDayStart)))
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 

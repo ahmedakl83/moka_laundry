@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../../models/customer_model.dart';
+import '../../models/user_model.dart';
+import '../auth/auth_provider.dart';
 import 'customers_provider.dart';
+import 'broadcast_screen.dart';
 
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -60,6 +63,19 @@ class CustomersScreen extends ConsumerWidget {
         title: const Text('إدارة العملاء'),
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
+        actions: [
+          if (ref.watch(authProvider).user?.role == UserRole.admin)
+            IconButton(
+              icon: const Icon(Icons.campaign),
+              tooltip: 'إرسال رسالة جماعية',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BroadcastScreen()),
+                );
+              },
+            ),
+        ],
       ),
       body: SafeArea(
         child: customers.isEmpty
@@ -99,6 +115,7 @@ class CustomersScreen extends ConsumerWidget {
     final nameController = TextEditingController(text: customer?.name);
     final phoneController = TextEditingController(text: customer?.phone);
     final isEditing = customer != null;
+    final isAdmin = ref.read(authProvider).user?.role == UserRole.admin;
 
     showDialog(
       context: context,
@@ -133,6 +150,30 @@ class CustomersScreen extends ConsumerWidget {
             ],
           ),
           actions: [
+            if (isEditing && isAdmin && customer.id != '1')
+              TextButton(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('حذف العميل'),
+                      content: const Text('هل أنت متأكد من حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('حذف', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    ref.read(customersProvider.notifier).deleteCustomer(customer.id);
+                    if (context.mounted) Navigator.pop(context);
+                  }
+                },
+                child: const Text('حذف', style: TextStyle(color: Colors.red)),
+              ),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),

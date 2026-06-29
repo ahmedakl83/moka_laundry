@@ -25,17 +25,20 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
   final _carNumberController = TextEditingController();
   final _notesController = TextEditingController();
   final _customerSearchController = TextEditingController();
+  TextEditingController? _autocompleteController;
+  String _lastSearchedCarNumber = '';
   String? _capturedImagePath;
 
   CustomerModel? _selectedCustomer;
   List<ServiceModel> _selectedServices = [];
   PaymentMethod _paymentMethod = PaymentMethod.cash;
 
-  double get _totalPrice => _selectedServices.fold(0, (sum, item) => sum + item.totalPrice);
+  double get _totalPrice => _selectedServices.fold(0.0, (sum, item) => sum + item.totalPrice);
 
   @override
   void initState() {
     super.initState();
+    _carNumberController.addListener(_onCarNumberChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final customers = ref.read(customersProvider);
       if (customers.isNotEmpty) {
@@ -45,6 +48,60 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _carNumberController.removeListener(_onCarNumberChanged);
+    _carNumberController.dispose();
+    _notesController.dispose();
+    _customerSearchController.dispose();
+    super.dispose();
+  }
+
+  void _onCarNumberChanged() {
+    final text = _carNumberController.text;
+    final normalized = text.replaceAll(' ', '').toLowerCase();
+    
+    if (normalized == _lastSearchedCarNumber) {
+      return;
+    }
+    _lastSearchedCarNumber = normalized;
+    
+    if (normalized.isEmpty) {
+      return;
+    }
+
+    final orders = ref.read(ordersProvider);
+    final customers = ref.read(customersProvider);
+
+    // البحث عن آخر عملية لنفس السيارة
+    OrderModel? matchingOrder;
+    for (final order in orders) {
+      if (order.carNumber != null) {
+        final normalizedCar = order.carNumber!.replaceAll(' ', '').toLowerCase();
+        if (normalizedCar == normalized) {
+          matchingOrder = order;
+          break; // الطلبات مرتبة تنازلياً حسب الأحدث
+        }
+      }
+    }
+
+    if (matchingOrder != null) {
+      CustomerModel? customer;
+      if (matchingOrder.customerId != null) {
+        customer = customers.where((c) => c.id == matchingOrder!.customerId).firstOrNull;
+      }
+      customer ??= customers.where((c) => c.name == matchingOrder!.customerName).firstOrNull;
+
+      if (customer != null) {
+        setState(() {
+          _selectedCustomer = customer;
+          _customerSearchController.text = customer!.name;
+          _autocompleteController?.text = customer!.name;
+        });
+      }
+    }
   }
 
   Future<void> _pickFromContacts(TextEditingController nameCtrl, TextEditingController phoneCtrl) async {
@@ -130,6 +187,7 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                   setState(() {
                     _selectedCustomer = newCustomer;
                     _customerSearchController.text = newCustomer.name;
+                    _autocompleteController?.text = newCustomer.name;
                   });
                   Navigator.pop(context);
                 }
@@ -142,22 +200,49 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
     );
   }
 
-  void _submitOrder() {
+  Future<void> _submitOrder() async {
     // التحقق من حالة العميل إذا كان هناك نص مكتوب ولم يتم الاختيار
     if (_selectedCustomer == null && _customerSearchController.text.isNotEmpty) {
       final customers = ref.read(customersProvider);
-      final match = customers.where((c) => c.name.trim() == _customerSearchController.text.trim()).toList();
+      final newCustName = _customerSearchController.text.trim();
+      final match = customers.where((c) => c.name.trim() == newCustName).toList();
 
       if (match.length == 1) {
         _selectedCustomer = match.first;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('يرجى اختيار العميل من القائمة الظاهرة أو الضغط على زر إضافة عميل جديد'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
+        if (mounted) {
+          final action = await showDialog<String>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('العميل غير مسجل'),
+              content: Text('الاسم "$newCustName" غير مسجل في النظام. هل ترغب في تسجيله كعميل جديد أم المتابعة كعميل نقدي؟'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, 'cash'),
+                  child: const Text('عميل نقدي'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, 'cancel'),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, 'add'),
+                  child: const Text('تسجيل كعميل جديد'),
+                ),
+              ],
+            ),
+          );
+
+          if (action == 'add') {
+            final newCustomer = ref.read(customersProvider.notifier).addCustomer(newCustName, '');
+            _selectedCustomer = newCustomer;
+          } else if (action == 'cash') {
+            final cashCustomer = customers.where((c) => c.id == '1' || c.name == 'عميل نقدي').firstOrNull;
+            _selectedCustomer = cashCustomer;
+          } else {
+            return; // إلغاء الحفظ
+          }
+        }
       }
     }
 
@@ -190,8 +275,10 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
     );
 
     ref.read(ordersProvider.notifier).addOrder(order);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل الطلب بنجاح')));
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل الطلب بنجاح')));
+    }
   }
 
   @override
@@ -211,6 +298,57 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // قسم رقم السيارة (بداية تسجيل العملية)
+              TextFormField(
+                controller: _carNumberController,
+                inputFormatters: [PlateNumberFormatter()],
+                style: const TextStyle(fontFamily: 'Calibri', fontWeight: FontWeight.bold, fontSize: 18),
+                decoration: const InputDecoration(
+                  labelText: 'رقم السيارة (اختياري حالياً)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.directions_car),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // قسم صورة اللوحة
+              const Text('صورة لوحة السيارة:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.push<String>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PlateScannerScreen()),
+                  );
+                  if (result != null) {
+                    setState(() => _capturedImagePath = result);
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
+                  ),
+                  child: _capturedImagePath != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(File(_capturedImagePath!), fit: BoxFit.cover),
+                        )
+                      : const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.camera_enhance, size: 50, color: AppColors.primaryBlue),
+                            SizedBox(height: 8),
+                            Text('اضغط لتصوير اللوحة'),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
               // قسم العميل
               Row(
                 children: [
@@ -235,12 +373,18 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                             setState(() => _selectedCustomer = c);
                           },
                           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            _autocompleteController = controller;
                             // ربط المتحكم الخارجي بالمتحكم الخاص بالـ Autocomplete
                             if (_customerSearchController.text.isNotEmpty && controller.text.isEmpty) {
                                controller.text = _customerSearchController.text;
                             }
                             controller.addListener(() {
                               _customerSearchController.text = controller.text;
+                              if (_selectedCustomer != null && controller.text != _selectedCustomer!.name) {
+                                setState(() {
+                                  _selectedCustomer = null;
+                                });
+                              }
                             });
 
                             return TextFormField(
@@ -292,55 +436,6 @@ class _NewOrderScreenState extends ConsumerState<NewOrderScreen> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 20),
-
-              // قسم صورة اللوحة
-              const Text('صورة لوحة السيارة:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () async {
-                  final result = await Navigator.push<String>(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PlateScannerScreen()),
-                  );
-                  if (result != null) {
-                    setState(() => _capturedImagePath = result);
-                  }
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
-                  ),
-                  child: _capturedImagePath != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(File(_capturedImagePath!), fit: BoxFit.cover),
-                        )
-                      : const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.camera_enhance, size: 50, color: AppColors.primaryBlue),
-                            SizedBox(height: 8),
-                            Text('اضغط لتصوير اللوحة'),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _carNumberController,
-                inputFormatters: [PlateNumberFormatter()],
-                style: const TextStyle(fontFamily: 'Calibri', fontWeight: FontWeight.bold, fontSize: 18),
-                decoration: const InputDecoration(
-                  labelText: 'رقم السيارة (اختياري حالياً)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.directions_car),
-                ),
               ),
               const SizedBox(height: 24),
 

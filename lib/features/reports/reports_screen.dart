@@ -23,25 +23,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   void _updateDateRange(ReportFilter filter) {
     final now = DateTime.now();
+    final busStart = DateTimeUtils.getBusinessDayStart(now);
     setState(() {
       _selectedFilter = filter;
       switch (filter) {
         case ReportFilter.today:
-          _startDate = DateTime(now.year, now.month, now.day);
-          _endDate = now;
+          _startDate = busStart;
+          _endDate = busStart.add(const Duration(hours: 24));
           break;
         case ReportFilter.week:
-          int daysToSubtract = (now.weekday + 1) % 7;
-          _startDate = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysToSubtract));
-          _endDate = now;
+          int daysToSubtract = (busStart.weekday + 1) % 7;
+          _startDate = DateTime(busStart.year, busStart.month, busStart.day, 3, 0).subtract(Duration(days: daysToSubtract));
+          _endDate = busStart.add(const Duration(hours: 24));
           break;
         case ReportFilter.month:
-          _startDate = DateTime(now.year, now.month, 1);
-          _endDate = now;
+          _startDate = DateTime(busStart.year, busStart.month, 1, 3, 0);
+          _endDate = busStart.add(const Duration(hours: 24));
           break;
         case ReportFilter.total:
-          _startDate = DateTime(2024, 1, 1);
-          _endDate = now;
+          _startDate = DateTime(2024, 1, 1, 3, 0);
+          _endDate = busStart.add(const Duration(hours: 24));
           break;
         case ReportFilter.custom:
           break;
@@ -70,13 +71,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       }
     }
 
-    double totalExpenses = allExpenses.fold(0, (sum, item) => sum + item.amount);
+    double totalExpenses = allExpenses.fold(0.0, (sum, item) => sum + item.amount);
     double netProfit = totalBaseIncome - totalExpenses;
 
     // تصفية عمليات اليوم فقط للقسم السفلي
     final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final todayOrders = allOrders.where((o) => o.createdAt.isAfter(todayStart)).toList();
+    final businessDayStart = DateTimeUtils.getBusinessDayStart(now);
+    final todayOrders = allOrders.where((o) => o.createdAt.isAfter(businessDayStart)).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -161,8 +162,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       itemCount: orders.length,
       itemBuilder: (context, index) {
         final order = orders[index];
-        double orderTips = order.services.fold(0, (sum, s) => sum + s.tip);
-        double orderBase = order.services.fold(0, (sum, s) => sum + s.basePrice);
+        double orderTips = order.services.fold(0.0, (sum, s) => sum + s.tip);
+        double orderBase = order.services.fold(0.0, (sum, s) => sum + s.basePrice);
 
         return Card(
           elevation: 1,
@@ -265,8 +266,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _buildPaymentStats(List<OrderModel> orders) {
-    double cash = orders.where((o) => o.paymentMethod == PaymentMethod.cash).fold(0, (sum, i) => sum + i.totalPrice);
-    double wallet = orders.where((o) => o.paymentMethod == PaymentMethod.wallet).fold(0, (sum, i) => sum + i.totalPrice);
+    double cash = orders.where((o) => o.paymentMethod == PaymentMethod.cash).fold(0.0, (sum, i) => sum + i.totalPrice);
+    double wallet = orders.where((o) => o.paymentMethod == PaymentMethod.wallet).fold(0.0, (sum, i) => sum + i.totalPrice);
 
     return Row(
       children: [
@@ -323,8 +324,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     if (picked != null) {
       setState(() {
         _selectedFilter = ReportFilter.custom;
-        _startDate = picked.start;
-        _endDate = picked.end;
+        _startDate = DateTime(picked.start.year, picked.start.month, picked.start.day, 3, 0);
+        _endDate = DateTime(picked.end.year, picked.end.month, picked.end.day, 3, 0).add(const Duration(days: 1));
       });
     }
   }
